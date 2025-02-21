@@ -9,6 +9,14 @@ interface TemplateStore extends TemplateState {
 	updateTemplate: (id: string, updates: Partial<Template>) => void;
 	deleteTemplate: (id: string) => void;
 	selectTemplate: (id: string | null) => void;
+
+	// Trend-related operations
+	incrementViews: (id: string) => void;
+	incrementUses: (id: string) => void;
+	incrementShares: (id: string) => void;
+	incrementLikes: (id: string) => void;
+	updateTrendScore: (id: string, score: number) => void;
+	getTrendingTemplates: () => Template[];
 	validateTemplate: (template: Template) => TemplateValidation;
 	validateFormatSettings: (template: Template) => TemplateValidation;
 	updateFormatSettings: (id: string, settings: Template['formatSettings']) => void;
@@ -16,8 +24,14 @@ interface TemplateStore extends TemplateState {
 	// Filtering
 	filterFormat: VideoFormatId | null;
 	filterPublished: boolean | null;
+	filterNiche: string | null;
+	filterContentType: string | null;
+	filterTone: string | null;
 	setFilterFormat: (format: VideoFormatId | null) => void;
 	setFilterPublished: (published: boolean | null) => void;
+	setFilterNiche: (niche: string | null) => void;
+	setFilterContentType: (type: string | null) => void;
+	setFilterTone: (tone: string | null) => void;
 	getFilteredTemplates: () => Template[];
 	getTemplatesByFormat: (format: VideoFormatId) => Template[];
 	
@@ -46,6 +60,9 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	error: null,
 	filterFormat: null,
 	filterPublished: null,
+	filterNiche: null,
+	filterContentType: null,
+	filterTone: null,
 
 	validateTemplate: (template) => {
 		const errors = [];
@@ -308,13 +325,26 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	// Filtering methods
 	setFilterFormat: (format) => set({ filterFormat: format }),
 	setFilterPublished: (published) => set({ filterPublished: published }),
+	setFilterNiche: (niche) => set({ filterNiche: niche }),
+	setFilterContentType: (type) => set({ filterContentType: type }),
+	setFilterTone: (tone) => set({ filterTone: tone }),
 
 	getFilteredTemplates: () => {
-		const { templates, filterFormat, filterPublished } = get();
+		const { 
+			templates, 
+			filterFormat, 
+			filterPublished,
+			filterNiche,
+			filterContentType,
+			filterTone
+		} = get();
 		
 		return templates.filter(template => {
 			if (filterFormat && template.videoFormat !== filterFormat) return false;
 			if (filterPublished !== null && template.isPublished !== filterPublished) return false;
+			if (filterNiche && filterNiche !== 'all' && template.niche !== filterNiche) return false;
+			if (filterContentType && filterContentType !== 'all' && template.contentType !== filterContentType) return false;
+			if (filterTone && filterTone !== 'all' && template.stylePreferences?.tone !== filterTone) return false;
 			return true;
 		});
 	},
@@ -322,5 +352,64 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	getTemplatesByFormat: (format) => {
 		const { templates } = get();
 		return templates.filter(template => template.videoFormat === format);
+	},
+
+	// Trend-related operations
+	incrementViews: (id) => set((state) => ({
+		templates: state.templates.map(t =>
+			t.id === id ? {
+				...t,
+				views: (t.views || 0) + 1,
+				updated: new Date()
+			} : t
+		)
+	})),
+
+	incrementUses: (id) => set((state) => ({
+		templates: state.templates.map(t =>
+			t.id === id ? {
+				...t,
+				uses: (t.uses || 0) + 1,
+				updated: new Date()
+			} : t
+		)
+	})),
+
+	incrementShares: (id) => set((state) => ({
+		templates: state.templates.map(t =>
+			t.id === id ? {
+				...t,
+				shares: (t.shares || 0) + 1,
+				updated: new Date()
+			} : t
+		)
+	})),
+
+	incrementLikes: (id) => set((state) => ({
+		templates: state.templates.map(t =>
+			t.id === id ? {
+				...t,
+				likes: (t.likes || 0) + 1,
+				updated: new Date()
+			} : t
+		)
+	})),
+
+	updateTrendScore: (id, score) => set((state) => ({
+		templates: state.templates.map(t =>
+			t.id === id ? {
+				...t,
+				trendScore: score,
+				updated: new Date()
+			} : t
+		)
+	})),
+
+	getTrendingTemplates: () => {
+		const { templates } = get();
+		return [...templates]
+			.filter(t => t.isPublished)
+			.sort((a, b) => (b.trendScore || 0) - (a.trendScore || 0))
+			.slice(0, 10);
 	},
 }));

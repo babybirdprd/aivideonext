@@ -1,108 +1,73 @@
-import { OpenAI } from 'openai';
-import { TrendAnalysisParams, TrendResult } from './types';
-import { ServiceResponse, ServiceMetrics } from '../types';
+import { Template } from '@/store/template.types';
+import { marketplaceService } from '../templates/marketplace.service';
 
-export class TrendAnalysisService {
-	private client: OpenAI;
-	private metrics: ServiceMetrics;
+interface TrendMetrics {
+	views: number;
+	uses: number;
+	shares: number;
+	likes: number;
+	timeWeight: number;
+}
 
-	constructor() {
-		this.client = new OpenAI({
-			apiKey: process.env.OPENAI_API_KEY,
-		});
-		this.metrics = {
-			startTime: 0,
-			endTime: 0,
-			processingTime: 0,
-		};
-	}
+class TrendAnalysisService {
+	private static instance: TrendAnalysisService;
 
-	private startMetrics() {
-		this.metrics.startTime = Date.now();
-	}
+	private constructor() {}
 
-	private endMetrics() {
-		this.metrics.endTime = Date.now();
-		this.metrics.processingTime = this.metrics.endTime - this.metrics.startTime;
-	}
-
-	private async analyzePlatformTrends(params: TrendAnalysisParams): Promise<string> {
-		const platformContext = {
-			youtube: "Focus on video title trends, thumbnail styles, and popular video formats",
-			tiktok: "Focus on viral sounds, hashtag challenges, and short-form content trends",
-			instagram: "Focus on Reels trends, visual aesthetics, and engagement patterns"
-		};
-
-		const prompt = `Analyze current content trends for ${params.topic} on ${params.platform}.
-			${platformContext[params.platform]}.
-			Consider the last ${params.timeframe || 'week'} of trending content.
-			Provide insights on:
-			1. Popular keywords and phrases
-			2. Trending topics and their engagement levels
-			3. Content recommendations
-			Limit results to top ${params.limit || 10} trends.`;
-
-		const completion = await this.client.chat.completions.create({
-			messages: [{ role: 'user', content: prompt }],
-			model: 'gpt-4-turbo-preview',
-			temperature: 0.7,
-		});
-
-		return completion.choices[0]?.message?.content || '';
-	}
-
-	private parseAIResponse(response: string): TrendResult {
-		try {
-			// Extract sections from AI response
-			const sections = response.split('\n\n');
-			const keywords = sections[0]?.match(/[\w\s#]+/g) || [];
-			
-			const topics = sections[1]?.split('\n')
-				.filter(line => line.trim())
-				.map(topic => ({
-					title: topic.split(':')[0] || '',
-					score: Math.random() * 100, // In real impl, parse actual scores
-					engagement: Math.random() * 1000000 // In real impl, parse actual engagement
-				})) || [];
-
-			const recommendations = sections[2]?.split('\n')
-				.filter(line => line.trim()) || [];
-
-			return {
-				keywords: keywords.map(k => k.trim()),
-				topics,
-				recommendations,
-				metadata: {
-					platform: 'youtube', // Set from params in real impl
-					timestamp: new Date().toISOString(),
-					confidence: 0.85
-				}
-			};
-		} catch (error) {
-			throw new Error('Failed to parse AI response');
+	public static getInstance(): TrendAnalysisService {
+		if (!TrendAnalysisService.instance) {
+			TrendAnalysisService.instance = new TrendAnalysisService();
 		}
+		return TrendAnalysisService.instance;
 	}
 
-	public async analyzeTrends(params: TrendAnalysisParams): Promise<ServiceResponse<TrendResult>> {
-		try {
-			this.startMetrics();
-			const aiResponse = await this.analyzePlatformTrends(params);
-			const result = this.parseAIResponse(aiResponse);
-			this.endMetrics();
-
-			return {
-				success: true,
-				data: result,
-			};
-		} catch (error) {
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : 'Unknown error occurred',
-			};
-		}
+	private calculateTimeWeight(timestamp: Date): number {
+		const now = new Date();
+		const diffInHours = (now.getTime() - timestamp.getTime()) / (1000 * 60 * 60);
+		return Math.exp(-diffInHours / 168); // Decay over a week
 	}
 
-	public getMetrics(): ServiceMetrics {
-		return this.metrics;
+	private calculateTrendScore(metrics: TrendMetrics): number {
+		const { views, uses, shares, likes, timeWeight } = metrics;
+		const baseScore = (views * 0.3 + uses * 0.4 + shares * 0.2 + likes * 0.1);
+		return baseScore * timeWeight;
+	}
+
+	async updateTemplateScore(template: Template, metrics: Partial<TrendMetrics>): Promise<Template> {
+		const timeWeight = this.calculateTimeWeight(new Date(template.updated));
+		const defaultMetrics: TrendMetrics = {
+			views: 0,
+			uses: 0,
+			shares: 0,
+			likes: 0,
+			timeWeight
+		};
+
+		const combinedMetrics = { ...defaultMetrics, ...metrics, timeWeight };
+		const trendScore = this.calculateTrendScore(combinedMetrics);
+
+		return await marketplaceService.updateTrendScore(template.id, trendScore);
+	}
+
+	async analyzeTrends(templates: Template[]): Promise<Template[]> {
+		const updatedTemplates = await Promise.all(
+			templates.map(async (template) => {
+				const timeWeight = this.calculateTimeWeight(new Date(template.updated));
+				const metrics = {
+					views: template.views || 0,
+					uses: template.uses || 0,
+					shares: template.shares || 0,
+					likes: template.likes || 0,
+					timeWeight
+				};
+				
+				const trendScore = this.calculateTrendScore(metrics);
+				return await marketplaceService.updateTrendScore(template.id, trendScore);
+			})
+		);
+
+		return updatedTemplates.sort((a, b) => (b.trendScore || 0) - (a.trendScore || 0));
 	}
 }
+
+export const trendAnalysisService = TrendAnalysisService.getInstance();

@@ -67,6 +67,20 @@ export const TemplateSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	description: z.string(),
+	niche: z.string(),
+	subNiche: z.string().optional(),
+	targetAudience: z.array(z.string()),
+	contentType: z.enum(['educational', 'entertainment', 'marketing', 'social', 'other']),
+	views: z.number().default(0),
+	uses: z.number().default(0),
+	shares: z.number().default(0),
+	likes: z.number().default(0),
+	trendScore: z.number().default(0),
+	stylePreferences: z.object({
+		tone: z.enum(['professional', 'casual', 'funny', 'serious', 'inspirational']),
+		pacing: z.enum(['slow', 'medium', 'fast']),
+		visualStyle: z.array(z.string())
+	}),
 	videoFormat: z.string(),
 	formatSettings: z.object({
 		fps: z.number().optional(),

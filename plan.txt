@@ -66,7 +66,7 @@
 - Timeline interface
 - Real-time collaboration foundation
 - Template system architecture
-- Transitions/Effects (see example.txt)
+- Transitions/Effects
 
 ### Phase 4: Rendering Pipeline (Week 4-5) MOSTLY COMPLETE
 - FFmpeg/WASM integration
@@ -81,9 +81,8 @@
 - Template inheritance
 - Add support for replicate api - image/video
 - Add support pexels
-- Style transfer
 - Marketplace UI
-- Trend analysis enhancements (google trends, and/or similar)
+- Google Trends analysis - used in autonomous video creation
 - Robust text overlays/captioning/subtitle via whisper with word level timestamps - grounding of text via the transcript
 - Create any and all missing components
 

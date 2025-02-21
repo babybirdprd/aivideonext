@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
 import { Template } from '@/store/template.types';
-
-// In a real application, this would be fetched from a database
-let trendingTemplates: Template[] = [];
+import { trendAnalysisService } from '@/services/ai/trend.service';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
 	try {
-		// Sort templates by trend score in descending order
-		const sortedTemplates = trendingTemplates.sort((a, b) => 
-			(b.trendScore || 0) - (a.trendScore || 0)
-		);
+		// In a real app, fetch templates from database
+		const templates = await prisma.template.findMany({
+			where: { isPublished: true },
+			orderBy: { trendScore: 'desc' },
+			take: 20
+		});
 
-		// Return top 10 trending templates
-		return NextResponse.json(sortedTemplates.slice(0, 10));
+		// Analyze trends and update scores
+		const analyzedTemplates = await trendAnalysisService.analyzeTrends(templates);
+
+		// Return top trending templates
+		return NextResponse.json(analyzedTemplates.slice(0, 10));
 	} catch (error) {
 		console.error('Error fetching trending templates:', error);
 		return NextResponse.json({ error: 'Failed to fetch trending templates' }, { status: 500 });
@@ -21,24 +25,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
 	try {
-		const template = await request.json();
+		const { template, metrics } = await request.json();
 		
-		// Update trending templates
-		const existingIndex = trendingTemplates.findIndex(t => t.id === template.id);
-		if (existingIndex !== -1) {
-			trendingTemplates[existingIndex] = {
-				...trendingTemplates[existingIndex],
-				...template,
-				trendScore: (trendingTemplates[existingIndex].trendScore || 0) + 1
-			};
-		} else {
-			trendingTemplates.push({
-				...template,
-				trendScore: 1
-			});
-		}
+		// Update template trend score using the trend analysis service
+		const updatedTemplate = await trendAnalysisService.updateTemplateScore(template, metrics);
 
-		return NextResponse.json(trendingTemplates[existingIndex !== -1 ? existingIndex : trendingTemplates.length - 1]);
+		// In a real app, update the database
+		await prisma.template.update({
+			where: { id: template.id },
+			data: {
+				trendScore: updatedTemplate.trendScore,
+				views: updatedTemplate.views,
+				uses: updatedTemplate.uses,
+				shares: updatedTemplate.shares,
+				likes: updatedTemplate.likes
+			}
+		});
+
+		return NextResponse.json(updatedTemplate);
 	} catch (error) {
 		console.error('Error updating trending template:', error);
 		return NextResponse.json({ error: 'Failed to update trending template' }, { status: 500 });

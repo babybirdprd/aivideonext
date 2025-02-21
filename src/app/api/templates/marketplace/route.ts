@@ -15,12 +15,22 @@ export async function GET(request: Request) {
 		const category = searchParams.get('category');
 		const videoFormat = searchParams.get('videoFormat');
 		const tags = searchParams.get('tags');
+		const niche = searchParams.get('niche');
+		const subNiche = searchParams.get('subNiche');
+		const contentType = searchParams.get('contentType');
+		const targetAudience = searchParams.get('targetAudience');
+		const stylePreferences = searchParams.get('stylePreferences');
 
 		const where = {
 			isPublished: true,
 			...(category && { category }),
 			...(videoFormat && { videoFormat }),
-			...(tags && { tags: { contains: tags } })
+			...(tags && { tags: { contains: tags } }),
+			...(niche && { niche }),
+			...(subNiche && { subNiche }),
+			...(contentType && { contentType }),
+			...(targetAudience && { targetAudience: { contains: targetAudience } }),
+			...(stylePreferences && { stylePreferences: { contains: stylePreferences } })
 		};
 
 		const templates = await prisma.template.findMany({
@@ -67,6 +77,8 @@ export async function POST(request: Request) {
 				blocks: JSON.stringify(template.blocks),
 				parameters: JSON.stringify(template.parameters),
 				tags: JSON.stringify(template.tags),
+				stylePreferences: JSON.stringify(template.stylePreferences),
+				targetAudience: JSON.stringify(template.targetAudience),
 				versionHistory: JSON.stringify([])
 			}
 		});

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTemplateStore } from '@/store/template.store';
 import { Template } from '@/store/template.types';
 import { Button } from '@/components/ui/button';
 import { Copy, Trash2, GitBranch, MonitorPlay, Tag, CircleDot } from 'lucide-react';
-import { VIDEO_PRESETS } from '@/types/video.types';
+import { NicheSelector } from './NicheSelector';
+import { Input } from '@/components/ui/input';
 
 interface TemplateCardProps {
 	template: Template;
@@ -90,20 +91,59 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
 
 export const TemplateGrid: React.FC = () => {
 	const { templates, selectTemplate } = useTemplateStore();
+	const [searchQuery, setSearchQuery] = useState('');
+	const [selectedNiche, setSelectedNiche] = useState('');
+	const [selectedSubNiche, setSelectedSubNiche] = useState('');
+
+	const filteredTemplates = useMemo(() => {
+		return templates.filter(template => {
+			const matchesSearch = searchQuery === '' || 
+				template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				template.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+			const matchesNiche = selectedNiche === '' || template.niche === selectedNiche;
+			const matchesSubNiche = selectedSubNiche === '' || template.subNiche === selectedSubNiche;
+
+			return matchesSearch && matchesNiche && matchesSubNiche;
+		});
+	}, [templates, searchQuery, selectedNiche, selectedSubNiche]);
+
+	const handleNicheChange = (niche: string, subNiche?: string) => {
+		setSelectedNiche(niche);
+		setSelectedSubNiche(subNiche || '');
+	};
 
 	const handleSelect = (template: Template) => {
 		selectTemplate(template.id);
 	};
 
 	return (
-		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-			{templates.map((template) => (
-				<TemplateCard
-					key={template.id}
-					template={template}
-					onSelect={handleSelect}
+		<div className="space-y-4">
+			<div className="flex flex-col md:flex-row gap-4 p-4">
+				<Input
+					placeholder="Search templates..."
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+					className="max-w-sm"
 				/>
-			))}
+				<NicheSelector onNicheChange={handleNicheChange} />
+			</div>
+
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+				{filteredTemplates.length > 0 ? (
+					filteredTemplates.map((template) => (
+						<TemplateCard
+							key={template.id}
+							template={template}
+							onSelect={handleSelect}
+						/>
+					))
+				) : (
+					<div className="col-span-full text-center py-8 text-muted-foreground">
+						No templates found matching your criteria
+					</div>
+				)}
+			</div>
 		</div>
 	);
 };

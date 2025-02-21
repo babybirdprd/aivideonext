@@ -18,12 +18,26 @@ class MarketplaceService {
 		category?: string;
 		videoFormat?: VideoFormatId;
 		tags?: string[];
+		niche?: string;
+		subNiche?: string;
+		contentType?: string;
+		targetAudience?: string[];
+		stylePreferences?: {
+			tone?: string;
+			pacing?: string;
+			visualStyle?: string[];
+		};
 	}): Promise<Template[]> {
 		try {
 			const queryParams = new URLSearchParams();
 			if (filters?.category) queryParams.set('category', filters.category);
 			if (filters?.videoFormat) queryParams.set('videoFormat', filters.videoFormat);
 			if (filters?.tags) queryParams.set('tags', JSON.stringify(filters.tags));
+			if (filters?.niche) queryParams.set('niche', filters.niche);
+			if (filters?.subNiche) queryParams.set('subNiche', filters.subNiche);
+			if (filters?.contentType) queryParams.set('contentType', filters.contentType);
+			if (filters?.targetAudience) queryParams.set('targetAudience', JSON.stringify(filters.targetAudience));
+			if (filters?.stylePreferences) queryParams.set('stylePreferences', JSON.stringify(filters.stylePreferences));
 
 			const response = await fetch(`/api/templates/marketplace?${queryParams}`);
 			if (!response.ok) throw new Error('Failed to fetch marketplace templates');
