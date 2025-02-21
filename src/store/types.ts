@@ -1,5 +1,9 @@
 export type BlockType = 'text' | 'media' | 'effect' | 'transition';
 
+export type EffectType = 'blur' | 'brightness' | 'contrast' | 'saturation' | 'overlay' | 'zoom' | 'pan' | 'rotate' | 'fade';
+export type TransitionType = 'fade' | 'dissolve' | 'wipe' | 'slide' | 'zoom' | 'push' | 'crossfade' | 'swipe';
+export type TransitionDirection = 'left' | 'right' | 'up' | 'down' | 'center';
+
 export interface Block {
 	id: string;
 	type: BlockType;
@@ -7,8 +11,17 @@ export interface Block {
 	start: number;  // Start time in seconds
 	duration: number;  // Duration in seconds
 	properties: {
+		// Effect properties
+		effectName?: EffectType;
+		intensity?: number;
+		// Transition properties
+		transitionType?: TransitionType;
+		direction?: TransitionDirection;
+		smoothness?: number;
+		// Other properties
 		[key: string]: any;
 	};
+	templateId?: string; // For template-based blocks
 }
 
 export interface Asset {
@@ -29,6 +42,7 @@ export interface Project {
 		theme: string;
 	};
 	assets: Asset[];
+	videoUrl?: string; // URL for preview video
 }
 
 export interface EditorState {

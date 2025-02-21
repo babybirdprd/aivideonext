@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Template, TemplateState } from './template.types';
+import { Template, TemplateState, TemplateVersion, TemplateInheritance } from './template.types';
 
 interface TemplateStore extends TemplateState {
 	// Template Management
@@ -10,14 +10,23 @@ interface TemplateStore extends TemplateState {
 	
 	// Template Operations
 	duplicateTemplate: (id: string) => void;
-	createVersionFromTemplate: (id: string) => void;
+	createVersionFromTemplate: (id: string, changes: TemplateVersion['changes']) => void;
+	
+	// Inheritance Operations
+	inheritFromTemplate: (childId: string, parentId: string) => void;
+	updateInheritance: (id: string, inheritance: TemplateInheritance) => void;
+	resolveInheritedValues: (template: Template) => Template;
+	
+	// Version Control
+	getVersionHistory: (id: string) => TemplateVersion[];
+	revertToVersion: (id: string, version: string) => void;
 	
 	// Loading State
 	setLoading: (isLoading: boolean) => void;
 	setError: (error: string | null) => void;
 }
 
-export const useTemplateStore = create<TemplateStore>((set) => ({
+export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	templates: [],
 	selectedTemplate: null,
 	isLoading: false,
@@ -29,7 +38,7 @@ export const useTemplateStore = create<TemplateStore>((set) => ({
 
 	updateTemplate: (id, updates) => set((state) => ({
 		templates: state.templates.map(template =>
-			template.id === id ? { ...template, ...updates } : template
+			template.id === id ? { ...template, ...updates, updated: new Date() } : template
 		)
 	})),
 
@@ -51,7 +60,11 @@ export const useTemplateStore = create<TemplateStore>((set) => ({
 			name: `${template.name} (Copy)`,
 			created: new Date(),
 			updated: new Date(),
-			parentId: template.id,
+			inheritance: template.inheritance ? {
+				...template.inheritance,
+				parentId: template.id
+			} : undefined,
+			versionHistory: []
 		};
 
 		return {
@@ -59,30 +72,122 @@ export const useTemplateStore = create<TemplateStore>((set) => ({
 		};
 	}),
 
-	createVersionFromTemplate: (id) => set((state) => {
+	createVersionFromTemplate: (id, changes) => set((state) => {
 		const template = state.templates.find(t => t.id === id);
 		if (!template) return state;
 
 		const version = parseInt(template.version.split('.')[0]);
-		const newVersion: Template = {
-			...template,
-			id: crypto.randomUUID(),
-			version: `${version + 1}.0`,
-			created: new Date(),
-			updated: new Date(),
-			parentId: template.id,
+		const newVersion = `${version + 1}.0`;
+		
+		const versionEntry: TemplateVersion = {
+			version: newVersion,
+			changes,
+			timestamp: new Date()
 		};
 
 		return {
-			templates: [...state.templates, newVersion]
+			templates: state.templates.map(t => 
+				t.id === id ? {
+					...t,
+					version: newVersion,
+					versionHistory: [...t.versionHistory, versionEntry],
+					updated: new Date()
+				} : t
+			)
 		};
 	}),
 
-	setLoading: (isLoading) => set({
-		isLoading
+	inheritFromTemplate: (childId, parentId) => set((state) => {
+		const child = state.templates.find(t => t.id === childId);
+		const parent = state.templates.find(t => t.id === parentId);
+		if (!child || !parent) return state;
+
+		const inheritance: TemplateInheritance = {
+			parentId,
+			overrides: [],
+			inherited: ['blocks', 'parameters']
+		};
+
+		return {
+			templates: state.templates.map(t =>
+				t.id === childId ? {
+					...t,
+					inheritance,
+					updated: new Date()
+				} : t
+			)
+		};
 	}),
 
-	setError: (error) => set({
-		error
+	updateInheritance: (id, inheritance) => set((state) => ({
+		templates: state.templates.map(t =>
+			t.id === id ? {
+				...t,
+				inheritance,
+				updated: new Date()
+			} : t
+		)
+	})),
+
+	resolveInheritedValues: (template) => {
+		if (!template.inheritance) return template;
+
+		const { templates } = get();
+		const parent = templates.find(t => t.id === template.inheritance?.parentId);
+		if (!parent) return template;
+
+		const resolvedTemplate = { ...template };
+		template.inheritance.inherited.forEach(key => {
+			resolvedTemplate[key] = parent[key];
+		});
+
+		template.inheritance.overrides.forEach(override => {
+			const path = override.path.split('.');
+			let current = resolvedTemplate;
+			for (let i = 0; i < path.length - 1; i++) {
+				current = current[path[i]];
+			}
+			current[path[path.length - 1]] = override.value;
+		});
+
+		return resolvedTemplate;
+	},
+
+	getVersionHistory: (id) => {
+		const template = get().templates.find(t => t.id === id);
+		return template?.versionHistory || [];
+	},
+
+	revertToVersion: (id, version) => set((state) => {
+		const template = state.templates.find(t => t.id === id);
+		if (!template) return state;
+
+		const targetVersion = template.versionHistory.find(v => v.version === version);
+		if (!targetVersion) return state;
+
+		// Create new version entry for the revert
+		const revertVersion: TemplateVersion = {
+			version: `${parseInt(template.version.split('.')[0]) + 1}.0`,
+			changes: [{
+				type: 'modified',
+				path: '/',
+				description: `Reverted to version ${version}`
+			}],
+			timestamp: new Date()
+		};
+
+		return {
+			templates: state.templates.map(t =>
+				t.id === id ? {
+					...t,
+					version: revertVersion.version,
+					versionHistory: [...t.versionHistory, revertVersion],
+					updated: new Date()
+				} : t
+			)
+		};
 	}),
+
+	setLoading: (isLoading) => set({ isLoading }),
+	setError: (error) => set({ error })
 }));

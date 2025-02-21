@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useDrop } from 'react-dnd';
 import { Block } from '@/store/types';
 import { useEditorStore } from '@/store/editor.store';
+import { useCollaborationStore } from '@/store/collaboration.store';
 import { DraggableBlock } from '../blocks/DraggableBlock';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +15,7 @@ const TimeMarker: React.FC<{ time: number; left: string }> = ({ time, left }) =>
 
 export const DroppableTimeline: React.FC = () => {
 	const { currentProject, selectedBlock, addBlock, selectBlock, updateBlock } = useEditorStore();
+	const { handleEditorAction, updateBlockSelection } = useCollaborationStore();
 
 	const timeMarkers = useMemo(() => {
 		const duration = currentProject?.settings.duration || 0;
@@ -43,13 +45,23 @@ export const DroppableTimeline: React.FC = () => {
 
 				if (item.id) {
 					updateBlock(item.id, { start: snappedTime });
+					handleEditorAction({
+						type: 'UPDATE_BLOCK',
+						id: item.id,
+						updates: { start: snappedTime }
+					});
 				} else {
-					addBlock({
+					const newBlock = {
 						...item,
 						id: crypto.randomUUID(),
 						start: snappedTime,
 						duration: 5,
 						properties: {}
+					};
+					addBlock(newBlock);
+					handleEditorAction({
+						type: 'ADD_BLOCK',
+						block: newBlock
 					});
 				}
 			}
@@ -59,6 +71,11 @@ export const DroppableTimeline: React.FC = () => {
 			canDrop: monitor.canDrop(),
 		}),
 	}));
+
+	const handleBlockSelect = (blockId: string) => {
+		selectBlock(blockId);
+		updateBlockSelection([blockId]);
+	};
 
 	const getBlockStyle = (block: Block) => {
 		const duration = currentProject?.settings.duration || 0;
@@ -89,12 +106,17 @@ export const DroppableTimeline: React.FC = () => {
 			{/* Blocks container */}
 			<div className="relative mt-8">
 				{currentProject?.blocks.map((block) => (
-					<div key={block.id} style={getBlockStyle(block)}>
+					<div 
+						key={block.id} 
+						style={getBlockStyle(block)}
+						data-selected={selectedBlock === block.id}
+						id={`block-${block.id}`}
+					>
 						<DraggableBlock
 							block={block}
 							isSelected={selectedBlock === block.id}
-							onClick={() => selectBlock(block.id)}
-							onDragStart={() => selectBlock(block.id)}
+							onClick={() => handleBlockSelect(block.id)}
+							onDragStart={() => handleBlockSelect(block.id)}
 						/>
 					</div>
 				))}

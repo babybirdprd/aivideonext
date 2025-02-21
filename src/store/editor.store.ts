@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EditorState, Project, Block } from './types';
+import { EditorState, Project, Block, Template } from './types';
 
 const DEFAULT_PROJECT: Project = {
 	id: 'default',
@@ -14,17 +14,26 @@ const DEFAULT_PROJECT: Project = {
 	assets: []
 };
 
+interface TemplateApplication {
+	template: Template;
+	parameterValues: Record<string, any>;
+}
+
 export const useEditorStore = create<EditorState & {
 	setProject: (project: Project) => void;
 	addBlock: (block: Block) => void;
 	updateBlock: (id: string, updates: Partial<Block>) => void;
 	removeBlock: (id: string) => void;
+	moveBlock: (id: string, position: number) => void;
 	selectBlock: (id: string | null) => void;
 	setProcessing: (isProcessing: boolean) => void;
 	setRenderProgress: (progress: number) => void;
 	undo: () => void;
 	redo: () => void;
-}>((set) => ({
+	applyTemplate: (application: TemplateApplication) => void;
+	revertTemplateApplication: (templateId: string) => void;
+	getAppliedTemplates: () => string[];
+}>((set, get) => ({
 	currentProject: DEFAULT_PROJECT,
 	selectedBlock: null,
 	history: {
@@ -33,6 +42,7 @@ export const useEditorStore = create<EditorState & {
 	},
 	isProcessing: false,
 	renderProgress: 0,
+	appliedTemplates: [] as string[],
 
 	setProject: (project) => set({ currentProject: project }),
 
@@ -116,5 +126,98 @@ export const useEditorStore = create<EditorState & {
 				future: newFuture
 			}
 		};
-	})
+	}),
+
+	applyTemplate: (application) => set((state) => {
+		if (!state.currentProject) return state;
+
+		// Process template blocks with parameter values
+		const processedBlocks = application.template.blocks.map(block => {
+			const newBlock = { ...block, id: crypto.randomUUID() };
+			
+			// Replace parameter placeholders in block properties
+			Object.entries(application.parameterValues).forEach(([paramId, value]) => {
+				const param = application.template.parameters.find(p => p.id === paramId);
+				if (!param) return;
+
+				// Replace {{paramName}} in block properties
+				Object.entries(newBlock.properties || {}).forEach(([key, propValue]) => {
+					if (typeof propValue === 'string') {
+						newBlock.properties[key] = propValue.replace(
+							`{{${param.name}}}`,
+							value.toString()
+						);
+					}
+				});
+			});
+
+			return newBlock;
+		});
+
+		const newProject = {
+			...state.currentProject,
+			blocks: [...state.currentProject.blocks, ...processedBlocks],
+		};
+
+		return {
+			currentProject: newProject,
+			appliedTemplates: [...state.appliedTemplates, application.template.id],
+			history: {
+				past: [...state.history.past, state.currentProject],
+				future: []
+			}
+		};
+	}),
+
+	revertTemplateApplication: (templateId) => set((state) => {
+		if (!state.currentProject) return state;
+
+		// Remove blocks added by this template
+		const templateIndex = state.appliedTemplates.indexOf(templateId);
+		if (templateIndex === -1) return state;
+
+		const newProject = {
+			...state.currentProject,
+			blocks: state.currentProject.blocks.filter(block => 
+				!block.templateId || block.templateId !== templateId
+			),
+		};
+
+		return {
+			currentProject: newProject,
+			appliedTemplates: state.appliedTemplates.filter(id => id !== templateId),
+			history: {
+				past: [...state.history.past, state.currentProject],
+				future: []
+			}
+		};
+	}),
+
+	moveBlock: (id, position) => set((state) => {
+		if (!state.currentProject) return state;
+		
+		const blocks = [...state.currentProject.blocks];
+		const blockIndex = blocks.findIndex(block => block.id === id);
+		if (blockIndex === -1) return state;
+
+		// Remove block from current position
+		const [block] = blocks.splice(blockIndex, 1);
+		// Insert at new position
+		blocks.splice(position, 0, block);
+
+		const newProject = {
+			...state.currentProject,
+			blocks
+		};
+
+		return {
+			currentProject: newProject,
+			history: {
+				past: [...state.history.past, state.currentProject],
+				future: []
+			}
+		};
+	}),
+
+	getAppliedTemplates: () => get().appliedTemplates,
 }));

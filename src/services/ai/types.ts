@@ -78,5 +78,24 @@ export const EnhancementResultSchema = z.object({
 	}),
 });
 
+export const StyleTransferSchema = z.object({
+	sourceUrl: z.string().url(),
+	style: z.string(),
+	strength: z.number().min(0).max(1).optional(),
+	preserveContent: z.boolean().optional(),
+});
+
+export const StyleTransferResultSchema = z.object({
+	resultUrl: z.string().url(),
+	style: z.string(),
+	processingStats: z.object({
+		duration: z.number(),
+		modelUsed: z.string(),
+		success: z.boolean(),
+	}),
+});
+
 export type AssetEnhancementParams = z.infer<typeof AssetEnhancementSchema>;
 export type EnhancementResult = z.infer<typeof EnhancementResultSchema>;
+export type StyleTransferParams = z.infer<typeof StyleTransferSchema>;
+export type StyleTransferResult = z.infer<typeof StyleTransferResultSchema>;

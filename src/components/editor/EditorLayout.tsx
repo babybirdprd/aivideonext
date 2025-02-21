@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { useEditorStore } from '@/store/editor.store';
+import { useCollaborationStore } from '@/store/collaboration.store';
+import { CollaborationOverlay } from './collaboration/CollaborationOverlay';
 import { Button } from '../ui/button';
 import { DroppableTimeline } from './timeline/DroppableTimeline';
 import { Block } from '@/store/types';
@@ -72,6 +74,23 @@ const toolGroups = [
 ];
 
 export const EditorLayout: React.FC = () => {
+	const { currentProject } = useEditorStore();
+	const { initializeCollaboration, disconnectCollaboration } = useCollaborationStore();
+
+	useEffect(() => {
+		if (currentProject) {
+			// Initialize collaboration with mock user (replace with actual auth user)
+			initializeCollaboration(currentProject.id, {
+				id: crypto.randomUUID(),
+				name: `User ${Math.floor(Math.random() * 1000)}`,
+			});
+
+			return () => {
+				disconnectCollaboration();
+			};
+		}
+	}, [currentProject?.id]);
+
 	return (
 		<DndProvider backend={HTML5Backend}>
 			<div className="flex h-screen bg-background">
@@ -111,6 +130,9 @@ export const EditorLayout: React.FC = () => {
 					<h2 className="text-lg font-semibold mb-4">Properties</h2>
 					<PropertyPanel />
 				</div>
+
+				{/* Collaboration Overlay */}
+				<CollaborationOverlay />
 			</div>
 		</DndProvider>
 	);

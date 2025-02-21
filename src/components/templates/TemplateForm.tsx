@@ -1,10 +1,47 @@
 import React from 'react';
 import { useTemplateStore } from '@/store/template.store';
-import { Template, TemplateParameter } from '@/store/template.types';
+import { Template, TemplateParameter, TemplateInheritance } from '@/store/template.types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ChevronDown } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+
+interface ValidationFormProps {
+	validation: TemplateParameter['validation'];
+	onUpdate: (validation: TemplateParameter['validation']) => void;
+}
+
+const ValidationForm: React.FC<ValidationFormProps> = ({ validation = {}, onUpdate }) => (
+	<div className="space-y-2 mt-2">
+		<div className="flex items-center gap-2">
+			<Checkbox 
+				checked={validation.required}
+				onCheckedChange={(checked) => onUpdate({ ...validation, required: checked })}
+			/>
+			<Label>Required</Label>
+		</div>
+		<div className="flex gap-2">
+			<Input
+				type="number"
+				placeholder="Min"
+				value={validation.min}
+				onChange={(e) => onUpdate({ ...validation, min: Number(e.target.value) })}
+			/>
+			<Input
+				type="number"
+				placeholder="Max"
+				value={validation.max}
+				onChange={(e) => onUpdate({ ...validation, max: Number(e.target.value) })}
+			/>
+		</div>
+		<Input
+			placeholder="Pattern (regex)"
+			value={validation.pattern}
+			onChange={(e) => onUpdate({ ...validation, pattern: e.target.value })}
+		/>
+	</div>
+);
 
 interface ParameterFormProps {
 	parameter: TemplateParameter;
@@ -13,7 +50,7 @@ interface ParameterFormProps {
 }
 
 const ParameterForm: React.FC<ParameterFormProps> = ({ parameter, onUpdate, onDelete }) => (
-	<div className="flex gap-2 items-start">
+	<div className="flex gap-2 items-start border p-4 rounded-lg">
 		<div className="flex-1 space-y-2">
 			<Input
 				placeholder="Parameter Name"
@@ -41,6 +78,10 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ parameter, onUpdate, onDe
 					onChange={(e) => onUpdate({ ...parameter, defaultValue: e.target.value })}
 				/>
 			</div>
+			<ValidationForm
+				validation={parameter.validation}
+				onUpdate={(validation) => onUpdate({ ...parameter, validation })}
+			/>
 		</div>
 		<Button variant="ghost" size="icon" onClick={onDelete}>
 			<X className="h-4 w-4" />
@@ -48,8 +89,57 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ parameter, onUpdate, onDe
 	</div>
 );
 
+interface InheritanceFormProps {
+	inheritance?: TemplateInheritance;
+	onUpdate: (inheritance: TemplateInheritance) => void;
+	availableTemplates: Template[];
+}
+
+const InheritanceForm: React.FC<InheritanceFormProps> = ({ inheritance, onUpdate, availableTemplates }) => (
+	<div className="space-y-4">
+		<div>
+			<Label>Parent Template</Label>
+			<select
+				className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+				value={inheritance?.parentId}
+				onChange={(e) => onUpdate({ 
+					parentId: e.target.value,
+					overrides: inheritance?.overrides || [],
+					inherited: inheritance?.inherited || ['blocks', 'parameters']
+				})}
+			>
+				<option value="">None</option>
+				{availableTemplates.map(t => (
+					<option key={t.id} value={t.id}>{t.name}</option>
+				))}
+			</select>
+		</div>
+		{inheritance && (
+			<div>
+				<Label>Inherit Properties</Label>
+				<div className="space-y-2">
+					{['blocks', 'parameters'].map(prop => (
+						<div key={prop} className="flex items-center gap-2">
+							<Checkbox
+								checked={inheritance.inherited.includes(prop)}
+								onCheckedChange={(checked) => {
+									const inherited = checked 
+										? [...inheritance.inherited, prop]
+										: inheritance.inherited.filter(p => p !== prop);
+									onUpdate({ ...inheritance, inherited });
+								}}
+							/>
+							<Label>{prop}</Label>
+						</div>
+					))}
+				</div>
+			</div>
+		)}
+	</div>
+);
+
 export const TemplateForm: React.FC = () => {
-	const { addTemplate } = useTemplateStore();
+	const { addTemplate, templates } = useTemplateStore();
 	const [template, setTemplate] = React.useState<Partial<Template>>({
 		name: '',
 		description: '',
@@ -58,6 +148,7 @@ export const TemplateForm: React.FC = () => {
 		parameters: [],
 		blocks: [],
 		tags: [],
+		versionHistory: [],
 	});
 
 	const addParameter = () => {
@@ -114,6 +205,10 @@ export const TemplateForm: React.FC = () => {
 		});
 	};
 
+	const handleInheritanceUpdate = (inheritance: TemplateInheritance) => {
+		setTemplate(prev => ({ ...prev, inheritance }));
+	};
+
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4 p-4">
 			<div>
@@ -140,6 +235,15 @@ export const TemplateForm: React.FC = () => {
 					value={template.category}
 					onChange={(e) => setTemplate(prev => ({ ...prev, category: e.target.value }))}
 					placeholder="Enter template category"
+				/>
+			</div>
+
+			<div>
+				<Label>Inheritance</Label>
+				<InheritanceForm
+					inheritance={template.inheritance}
+					onUpdate={handleInheritanceUpdate}
+					availableTemplates={templates.filter(t => t.id !== template.id)}
 				/>
 			</div>
 

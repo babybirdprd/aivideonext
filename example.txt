@@ -1,0 +1,318 @@
+### Core Framer Motion Implementation  
+```typescript
+// app/components/AnimatedImage.tsx
+'use client';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+
+export default function AnimatedImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    
+      
+    
+  );
+}
+```
+This component demonstrates viewport-triggered animations with spring physics for natural motion feel[1][6]. The `viewport` configuration prevents re-animation on subsequent scrolls while accounting for 100px of scroll hysteresis[1].  
+
+---
+
+## Scroll-Linked Animation Patterns  
+
+### Staggered Grid Animations  
+```typescript
+// app/components/ImageGrid.tsx
+'use client';
+import { motion } from 'framer-motion';
+import { useRef } from 'react';
+
+const variants = {
+  hidden: { opacity: 0, y: 50 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.15, duration: 0.6 }
+  })
+};
+
+export default function ImageGrid({ images }: { images: string[] }) {
+  const containerRef = useRef(null);
+  
+  return (
+    
+      {images.map((img, i) => (
+        
+          
+        
+      ))}
+    
+  );
+}
+```
+This pattern implements container-relative viewport detection with staggered animation delays[2][7]. The `margin: '20%'` configuration triggers animations when elements enter within 20% of the container's viewport area[1].  
+
+---
+
+## Advanced Scroll Interaction Techniques  
+
+### Dynamic Parallax Effects  
+```typescript
+// app/components/ParallaxImage.tsx
+'use client';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
+
+export default function ParallaxImage({ src, alt }: { src: string; alt: string }) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end start']
+  });
+
+  const y = useTransform(scrollYProgress, [0, 1], ['-30%', '30%']);
+  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
+
+  return (
+    
+      
+        
+      
+    
+  );
+}
+```
+Leverages Framer Motion's `useScroll` and `useTransform` hooks to create CPU-efficient parallax effects[5][7]. The vertical motion range is constrained to prevent excessive repaints while maintaining visual impact[4].  
+
+---
+
+## Performance Optimization Strategies  
+
+### Intelligent Loading Patterns  
+```typescript
+// app/components/LazyImage.tsx
+'use client';
+import { LazyMotion, domAnimation, m } from 'framer-motion';
+import dynamic from 'next/dynamic';
+
+const AnimatedImage = dynamic(() => import('./AnimatedImage'), {
+  ssr: false,
+  loading: () => 
+});
+
+export default function LazyImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    
+      
+    
+  );
+}
+```
+Implements three-stage optimization:  
+1. Dynamic component loading removes Framer Motion from initial bundle[6]  
+2. Skeleton placeholder during loading prevents layout shifts[4]  
+3. `LazyMotion` loads only required animation features[7]  
+
+---
+
+## Complex Animation Sequencing  
+
+### Interactive Gallery Component  
+```typescript
+// app/components/InteractiveGallery.tsx
+'use client';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useState } from 'react';
+
+const variants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? '100%' : '-100%',
+    opacity: 0
+  }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({
+    x: direction  {
+    setPage([page + newDirection, newDirection]);
+  };
+
+  return (
+    
+      
+        
+          
+        
+      
+      
+       paginate(1)}
+        className="absolute right-4 top-1/2 bg-white p-2 rounded-full shadow-lg"
+      >
+        →
+      
+       paginate(-1)}
+        className="absolute left-4 top-1/2 bg-white p-2 rounded-full shadow-lg"
+      >
+        ←
+      
+    
+  );
+}
+```
+Implements gesture-controlled gallery with directional awareness using `AnimatePresence` for smooth transitions[6][7]. The directional logic creates natural-feeling navigation comparable to native mobile experiences[1].  
+
+---
+
+## Scroll Progress Animations  
+
+### Timeline-Based Reveal Effect  
+```typescript
+// app/components/ScrollProgressImage.tsx
+'use client';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
+
+export default function ScrollImage({ src, alt }: { src: string; alt: string }) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end start']
+  });
+
+  const pathLength = useTransform(scrollYProgress, [0, 1], [0, 1]);
+  const opacity = useTransform(scrollYProgress, [0.2, 0.8], [0, 1]);
+
+  return (
+    
+      
+        
+        
+        
+          
+        
+      
+    
+  );
+}
+```
+Combines scroll progress tracking with SVG animations for complex reveal effects[4][7]. The gradient overlay's opacity is precisely synchronized with scroll position for layered visual impact[1].  
+
+---
+
+## Best Practices for Production  
+
+1. **Motion Partitioning**:  
+```typescript
+// app/utils/motion.ts
+import { Variants } from 'framer-motion';
+
+export const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      duration: 0.6,
+      staggerChildren: 0.2,
+      when: 'beforeChildren' 
+    }
+  }
+};
+
+export const staggerItems: Variants = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+```
+Centralized animation variants ensure consistency and simplify maintenance[6][7]. Stagger timing is controlled at the parent level for coordinated child animations[2].  
+
+2. **Performance Monitoring**:  
+```typescript
+// app/hooks/useAnimationFrame.ts
+'use client';
+import { useEffect } from 'react';
+import { useMotionValue, useSpring } from 'framer-motion';
+
+export const useSmoothScroll = () => {
+  const smoothScroll = useSpring(0, { stiffness: 300, damping: 30 });
+  
+  useEffect(() => {
+    const updateScroll = () => smoothScroll.set(window.scrollY);
+    window.addEventListener('scroll', updateScroll, { passive: true });
+    return () => window.removeEventListener('scroll', updateScroll);
+  }, []);
+
+  return smoothScroll;
+};
+```
+Implements spring-physics based scroll tracking for buttery-smooth animation synchronization[5][7]. The passive scroll listener ensures optimal main thread performance[4].  
+
+---
+
+## Debugging Common Issues  
+
+### Animation Flickering Fix  
+```typescript
+// app/components/StableAnimation.tsx
+'use client';
+import { motion, useReducedMotion } from 'framer-motion';
+
+export default function StableImage({ src, alt }: { src: string; alt: string }) {
+  const shouldReduceMotion = useReducedMotion();
+  
+  return (
+    
+       img.style.removeProperty('opacity')}
+        style={{ opacity: 0, transition: 'opacity 0.3s' }}
+      />
+    
+  );
+}
+```
+Addresses common flickering issues through:  
+1. Motion preference detection via `useReducedMotion`[6]  
+2. Coordinated CSS transitions between Next.js Image and Framer Motion[4]  
+3. Direct style manipulation after image load completion[3]  
+
+---
+
+## Future-Proof Implementation  
+
+### Hybrid CSS Animation Approach  
+```typescript
+// app/components/HybridImage.tsx
+'use client';
+import { motion } from 'framer-motion';
+import { useState } from 'react';
+
+export default function HybridImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    
+       setLoaded(true)}
+      />
+      {!loaded && (
+        
+      )}
+    
+  );
+}
+```
+Combines Framer Motion's JavaScript animations with CSS transitions for:  
+1. Graceful fallback when JavaScript is disabled[3]  
+2. GPU-accelerated scale transforms via CSS[4]  
+3. Coordinated loading states between animation systems[6]  
+
+---
+
+## Final Recommendations  
+
+For production-grade Next.js 14 implementations:  
+1. Use `@next/font` for optimized font loading to prevent layout shifts during animations[7]  
+2. Implement `sharp` or `squoosh` image optimization in `next.config.js` for faster image decoding[3]  
+3. Combine `React.memo` with Framer Motion's `shouldReduceMotion` for optimal performance[6]  
+4. Utilize `IntersectionObserver` polyfill for consistent scroll behavior across browsers[1]  
+5. Implement animation budgets limiting simultaneous animations to 3-5 elements[4]  
+
+This comprehensive approach ensures smooth, accessible animations while maintaining Next.js 14's performance advantages through strategic client-side isolation and modern browser APIs[2][7].
