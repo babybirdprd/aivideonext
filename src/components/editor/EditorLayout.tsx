@@ -12,8 +12,10 @@ import { Block } from '@/store/types';
 import { useDrag } from 'react-dnd';
 import { PropertyPanel } from './properties/PropertyPanel';
 import { PreviewPanel } from './preview/PreviewPanel';
-import { Type, Image, Wand2, Transition } from 'lucide-react';
+import { Type, Image, Wand2 } from 'lucide-react';
 import VideoFormatSelector from './VideoFormatSelector';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AutonomousPanel } from './autonomous/AutonomousPanel';
 
 interface ToolButtonProps {
 	block: Partial<Block>;
@@ -69,7 +71,7 @@ const toolGroups = [
 			},
 			{
 				block: { type: 'transition', content: 'New Transition', duration: 2 },
-				icon: <Transition className="h-4 w-4" />,
+				icon: <Wand2 className="h-4 w-4" />,
 				label: 'Transition'
 			},
 		]
@@ -130,11 +132,21 @@ export const EditorLayout: React.FC = () => {
 
 				{/* Properties Panel */}
 				<div className="w-64 border-l border-border p-4">
-					<h2 className="text-lg font-semibold mb-4">Properties</h2>
-					<div className="space-y-6">
-						<VideoFormatSelector />
-						<PropertyPanel />
-					</div>
+					<Tabs defaultValue="properties">
+						<TabsList className="w-full mb-4">
+							<TabsTrigger value="properties" className="flex-1">Properties</TabsTrigger>
+							<TabsTrigger value="autonomous" className="flex-1">AI Tools</TabsTrigger>
+						</TabsList>
+						<TabsContent value="properties">
+							<div className="space-y-6">
+								<VideoFormatSelector />
+								<PropertyPanel />
+							</div>
+						</TabsContent>
+						<TabsContent value="autonomous">
+							<AutonomousPanel projectId={currentProject?.id || ''} />
+						</TabsContent>
+					</Tabs>
 				</div>
 
 				{/* Collaboration Overlay */}

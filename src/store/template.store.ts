@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { Template, TemplateState, TemplateVersion, TemplateInheritance } from './template.types';
+import { Template, TemplateState, TemplateVersion, TemplateInheritance, TemplateValidation } from './template.types';
 import { VideoFormatId } from '@/types/video.types';
+import { getVideoFormat } from '@/types/video-format.types';
 
 interface TemplateStore extends TemplateState {
 	// Template Management
@@ -8,6 +9,9 @@ interface TemplateStore extends TemplateState {
 	updateTemplate: (id: string, updates: Partial<Template>) => void;
 	deleteTemplate: (id: string) => void;
 	selectTemplate: (id: string | null) => void;
+	validateTemplate: (template: Template) => TemplateValidation;
+	validateFormatSettings: (template: Template) => TemplateValidation;
+	updateFormatSettings: (id: string, settings: Template['formatSettings']) => void;
 
 	// Filtering
 	filterFormat: VideoFormatId | null;
@@ -43,15 +47,114 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	filterFormat: null,
 	filterPublished: null,
 
-	addTemplate: (template) => set((state) => ({
-		templates: [...state.templates, template]
-	})),
+	validateTemplate: (template) => {
+		const errors = [];
+		const videoFormat = getVideoFormat(template.videoFormat);
 
-	updateTemplate: (id, updates) => set((state) => ({
+		if (!videoFormat) {
+			errors.push({
+				field: 'videoFormat',
+				message: 'Invalid video format selected'
+			});
+			return { isValid: false, errors };
+		}
+
+		// Validate format settings
+		const formatValidation = get().validateFormatSettings(template);
+		if (!formatValidation.isValid) {
+			errors.push(...formatValidation.errors);
+		}
+
+		// Validate blocks duration
+		const totalDuration = template.blocks.reduce((sum, block) => 
+			sum + block.duration, 0);
+		
+		if (videoFormat.recommendedSettings?.maxDuration && 
+				totalDuration > videoFormat.recommendedSettings.maxDuration) {
+			errors.push({
+				field: 'duration',
+				message: `Total duration exceeds platform limit of ${videoFormat.recommendedSettings.maxDuration}s`
+			});
+		}
+
+		return {
+			isValid: errors.length === 0,
+			errors
+		};
+	},
+
+	validateFormatSettings: (template) => {
+		const errors = [];
+		const videoFormat = getVideoFormat(template.videoFormat);
+		const settings = template.formatSettings;
+
+		if (videoFormat?.recommendedSettings && settings) {
+			if (settings.fps && settings.fps > (videoFormat.recommendedSettings.fps || 30)) {
+				errors.push({
+					field: 'fps',
+					message: `FPS exceeds platform recommendation of ${videoFormat.recommendedSettings.fps}`
+				});
+			}
+
+			if (settings.bitrate) {
+				const currentBitrate = parseInt(settings.bitrate);
+				const recommendedBitrate = parseInt(videoFormat.recommendedSettings.bitrate || '0');
+				if (currentBitrate > recommendedBitrate) {
+					errors.push({
+						field: 'bitrate',
+						message: `Bitrate exceeds platform recommendation of ${videoFormat.recommendedSettings.bitrate}`
+					});
+				}
+			}
+		}
+
+		return {
+			isValid: errors.length === 0,
+			errors
+		};
+	},
+
+	updateFormatSettings: (id, settings) => set((state) => ({
 		templates: state.templates.map(template =>
-			template.id === id ? { ...template, ...updates, updated: new Date() } : template
+			template.id === id ? {
+				...template,
+				formatSettings: settings,
+				updated: new Date()
+			} : template
 		)
 	})),
+
+	addTemplate: (template) => {
+		const validation = get().validateTemplate(template);
+		if (!validation.isValid) {
+			set({ error: validation.errors[0].message });
+			return;
+		}
+
+		set((state) => ({
+			templates: [...state.templates, template]
+		}));
+	},
+
+	updateTemplate: (id, updates) => {
+		const state = get();
+		const template = state.templates.find(t => t.id === id);
+		if (!template) return;
+
+		const updatedTemplate = { ...template, ...updates };
+		const validation = state.validateTemplate(updatedTemplate);
+		
+		if (!validation.isValid) {
+			set({ error: validation.errors[0].message });
+			return;
+		}
+
+		set((state) => ({
+			templates: state.templates.map(t =>
+				t.id === id ? { ...updatedTemplate, updated: new Date() } : t
+			)
+		}));
+	},
 
 	deleteTemplate: (id) => set((state) => ({
 		templates: state.templates.filter(template => template.id !== id)

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, X, ChevronDown } from 'lucide-react';
+import { TemplateVersionDialog } from './TemplateVersionDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -15,7 +16,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { VideoFormatId, VIDEO_PRESETS } from '@/types/video.types';
+import { VideoFormatId } from '@/types/video.types';
+import { VideoFormatSelector } from './VideoFormatSelector';
 
 interface StyleParameterFormProps {
 	parameter: TemplateParameter;
@@ -308,6 +310,14 @@ export const TemplateForm: React.FC = () => {
 		setTemplate(prev => ({ ...prev, inheritance }));
 	};
 
+	const handleVersionCreated = (updatedTemplate: Template) => {
+		setTemplate(prev => ({
+			...prev,
+			version: updatedTemplate.version,
+			versionHistory: updatedTemplate.versionHistory
+		}));
+	};
+
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4 p-4">
 			<div>
@@ -339,23 +349,23 @@ export const TemplateForm: React.FC = () => {
 
 			<div>
 				<Label>Video Format</Label>
-				<Select
-					value={template.videoFormat}
-					onValueChange={(value: VideoFormatId) => 
-						setTemplate(prev => ({ ...prev, videoFormat: value }))
-					}
-				>
-					<SelectTrigger>
-						<SelectValue placeholder="Select video format" />
-					</SelectTrigger>
-					<SelectContent>
-						{Object.entries(VIDEO_PRESETS).map(([id, dimensions]) => (
-							<SelectItem key={id} value={id}>
-								{id.replace(/-/g, ' ')} ({dimensions.width}x{dimensions.height})
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+				<div className="mt-2">
+					<VideoFormatSelector
+						value={template.videoFormat}
+						onChange={(value) => 
+							setTemplate(prev => ({ 
+								...prev, 
+								videoFormat: value,
+								// Reset blocks when format changes to prevent incompatible layouts
+								blocks: [] 
+							}))
+						}
+					/>
+				</div>
+				<p className="text-sm text-muted-foreground mt-2">
+					Select the target platform and format for your video template.
+					This will determine the dimensions and recommended settings for the output.
+				</p>
 			</div>
 
 			<div>
@@ -369,6 +379,37 @@ export const TemplateForm: React.FC = () => {
 					/>
 					<Label>{template.isPublished ? 'Published' : 'Draft'}</Label>
 				</div>
+			</div>
+
+			<div>
+				<div className="flex items-center justify-between mb-2">
+					<Label>Version Management</Label>
+					<div className="flex items-center gap-2">
+						<div className="text-sm text-muted-foreground">
+							Current Version: {template.version}
+						</div>
+						{template.id && (
+							<TemplateVersionDialog
+								template={template as Template}
+								onVersionCreated={handleVersionCreated}
+							/>
+						)}
+					</div>
+				</div>
+				{template.versionHistory && template.versionHistory.length > 0 && (
+					<div className="mt-2 space-y-2">
+						<Label className="text-sm">Version History</Label>
+						<div className="text-sm text-muted-foreground">
+							{JSON.parse(template.versionHistory).map((version: any) => (
+								<div key={version.version} className="flex items-center gap-2">
+									<span>v{version.version}</span>
+									<span>-</span>
+									<span>{new Date(version.timestamp).toLocaleDateString()}</span>
+								</div>
+							))}
+						</div>
+					</div>
+				)}
 			</div>
 
 			<div>

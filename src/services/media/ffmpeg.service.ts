@@ -298,4 +298,72 @@ export class FFmpegService {
 	public getMetrics(): ServiceMetrics {
 		return this.metrics;
 	}
+
+	public async extractFrames(
+		videoPath: string,
+		frameCount: number = 10
+	): Promise<ServiceResponse<string[]>> {
+		try {
+			await this.init();
+			this.startMetrics();
+
+			const inputFile = await fetchFile(videoPath);
+			await this.ffmpeg.writeFile('input', inputFile);
+
+			// Get video duration
+			await this.ffmpeg.exec(['-i', 'input', '-f', 'null', '-']);
+			const duration = await this.getDuration('input');
+
+			// Calculate frame intervals
+			const interval = duration / frameCount;
+			const frames: string[] = [];
+
+			// Extract frames at calculated intervals
+			for (let i = 0; i < frameCount; i++) {
+				const timestamp = i * interval;
+				const outputName = `frame_${i}.jpg`;
+				
+				await this.ffmpeg.exec([
+					'-ss', timestamp.toString(),
+					'-i', 'input',
+					'-vframes', '1',
+					'-q:v', '2',
+					outputName
+				]);
+
+				const frameData = await this.ffmpeg.readFile(outputName);
+				const blob = new Blob([frameData], { type: 'image/jpeg' });
+				const frameUrl = URL.createObjectURL(blob);
+				frames.push(frameUrl);
+			}
+
+			this.endMetrics();
+
+			return {
+				success: true,
+				data: frames,
+				metrics: this.metrics
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error occurred',
+				metrics: this.metrics
+			};
+		}
+	}
+
+	private async getDuration(filename: string): Promise<number> {
+		const result = await this.ffmpeg.exec([
+			'-i', filename,
+			'-f', 'null', '-'
+		]);
+		
+		// Parse duration from FFmpeg output
+		const durationMatch = result.match(/Duration: (\d{2}):(\d{2}):(\d{2}.\d{2})/);
+		if (!durationMatch) return 0;
+		
+		const [_, hours, minutes, seconds] = durationMatch;
+		return parseFloat(hours) * 3600 + parseFloat(minutes) * 60 + parseFloat(seconds);
+	}
 }

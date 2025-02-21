@@ -43,6 +43,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   projects      Project[]
+  templates     Template[]
 }
 
 model VerificationToken {
@@ -75,14 +76,28 @@ model Asset {
 }
 
 model Template {
-  id          String    @id @default(cuid())
-  name        String
-  blocks      String    // Stored as JSON string
-  parameters  String    // Stored as JSON string
-  version     String
-  parentId    String?
-  parent      Template? @relation("TemplateVersions", fields: [parentId], references: [id])
-  children    Template[] @relation("TemplateVersions")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  name          String
+  description   String
+  category      String
+  blocks        String    // Stored as JSON string
+  parameters    String    // Stored as JSON string
+  version       String
+  versionHistory String   // Stored as JSON string
+  parentId      String?
+  parent        Template? @relation("TemplateVersions", fields: [parentId], references: [id])
+  children      Template[] @relation("TemplateVersions")
+  videoFormat   String    // Stores the video format ID
+  isPublished   Boolean   @default(false)
+  tags          String    // Stored as JSON string
+  isBase        Boolean   @default(false)
+  thumbnail     String?
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([isPublished])
+  @@index([category])
 }

@@ -7,6 +7,12 @@ import {
 	ImageGenerationSchema,
 	VoiceGenerationSchema 
 } from './types';
+
+interface VisionAnalysisParams {
+	imageUrl: string;
+	prompt?: string;
+	detail?: 'low' | 'high';
+}
 import { ServiceHandler, ServiceResponse, ServiceMetrics } from '../types';
 
 export class OpenAIService {
@@ -104,5 +110,63 @@ export class OpenAIService {
 
 	public getMetrics(): ServiceMetrics {
 		return this.metrics;
+	}
+
+	public async analyzeImage(params: VisionAnalysisParams): Promise<ServiceResponse<string>> {
+		try {
+			this.startMetrics();
+			const completion = await this.client.chat.completions.create({
+				model: "gpt-4-vision-preview",
+				messages: [
+					{
+						role: "user",
+						content: [
+							{ type: "text", text: params.prompt || "Analyze this image in detail." },
+							{
+								type: "image_url",
+								image_url: params.imageUrl,
+							},
+						],
+					},
+				],
+				max_tokens: 500,
+			});
+			this.endMetrics();
+			
+			return {
+				success: true,
+				data: completion.choices[0]?.message?.content || '',
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error occurred',
+			};
+		}
+	}
+
+	public async analyzeVideoFrames(frames: string[]): Promise<ServiceResponse<string[]>> {
+		try {
+			this.startMetrics();
+			const analyses = await Promise.all(
+				frames.map(frame => 
+					this.analyzeImage({
+						imageUrl: frame,
+						prompt: "Analyze this video frame, focusing on key actions, subjects, and composition."
+					})
+				)
+			);
+			this.endMetrics();
+			
+			return {
+				success: true,
+				data: analyses.map(analysis => analysis.data || '').filter(Boolean),
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error occurred',
+			};
+		}
 	}
 }

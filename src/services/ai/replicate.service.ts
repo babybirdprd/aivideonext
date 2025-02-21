@@ -1,4 +1,18 @@
 import { ReplicateModel, ReplicateInput, ReplicateModelSchema } from './replicate.types';
+import { REPLICATE_MODELS } from './replicate.types';
+
+interface VideoGenerationParams {
+	prompt: string;
+	style?: string;
+	num_frames?: number;
+	fps?: number;
+}
+
+interface ServiceResponse<T> {
+	success: boolean;
+	data?: T;
+	error?: string;
+}
 
 export class ReplicateService {
 	private readonly apiUrl = 'https://api.replicate.com/v1';
@@ -62,6 +76,40 @@ export class ReplicateService {
 
 		return prediction;
 	}
+
+	async generateVideo(params: VideoGenerationParams): Promise<ServiceResponse<string>> {
+		try {
+			const prediction = await this.predict({
+				modelVersion: REPLICATE_MODELS.imageToVideo,
+				input: {
+					prompt: `${params.prompt}${params.style ? `, style: ${params.style}` : ''}`,
+					num_frames: params.num_frames || 24,
+					fps: params.fps || 8
+				}
+			});
+
+			const result = await this.waitForCompletion(prediction.id);
+
+			if (result.status === 'succeeded' && result.output) {
+				return {
+					success: true,
+					data: Array.isArray(result.output) ? result.output[0] : result.output
+				};
+			}
+
+			return {
+				success: false,
+				error: result.error || 'Failed to generate video'
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error occurred'
+			};
+		}
+	}
 }
 
 export const replicateService = new ReplicateService();
+
+export type { VideoGenerationParams, ServiceResponse };
