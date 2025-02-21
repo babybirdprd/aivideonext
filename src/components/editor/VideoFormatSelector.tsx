@@ -1,25 +1,33 @@
 import { useEditorStore } from '@/store/editor.store';
-import { VideoFormat, VIDEO_PRESETS } from '@/types/video.types';
+import { VideoFormat, VIDEO_FORMATS, calculateAspectRatio } from '@/types/video.types';
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
+	SelectLabel,
 	SelectTrigger,
 	SelectValue,
 } from '../ui/select';
 
 const VideoFormatSelector = () => {
 	const { currentProject, setVideoFormat } = useEditorStore();
-	const currentFormat = currentProject?.settings.videoFormat || 'youtube';
+	const currentFormat = currentProject?.settings.videoFormat || 'youtube-landscape';
 
-	const formatOptions = Object.entries(VIDEO_PRESETS).map(([format, dimensions]) => ({
-		value: format,
-		label: `${format} (${dimensions.width}x${dimensions.height})`
-	}));
-
-	const handleFormatChange = (value: string) => {
-		setVideoFormat(value as VideoFormat);
+	const handleFormatChange = (formatId: string) => {
+		setVideoFormat(formatId);
 	};
+
+	const currentDimensions = currentProject?.settings.dimensions;
+
+	// Group formats by platform
+	const groupedFormats = VIDEO_FORMATS.reduce((acc, format) => {
+		if (!acc[format.platform]) {
+			acc[format.platform] = [];
+		}
+		acc[format.platform].push(format);
+		return acc;
+	}, {} as Record<string, VideoFormat[]>);
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -29,17 +37,26 @@ const VideoFormatSelector = () => {
 					<SelectValue placeholder="Select format" />
 				</SelectTrigger>
 				<SelectContent>
-					{formatOptions.map((option) => (
-						<SelectItem key={option.value} value={option.value}>
-							{option.label}
-						</SelectItem>
+					{Object.entries(groupedFormats).map(([platform, formats]) => (
+						<SelectGroup key={platform}>
+							<SelectLabel className="capitalize">{platform}</SelectLabel>
+							{formats.map((format) => (
+								<SelectItem key={format.id} value={format.id}>
+									{format.name} ({format.width}x{format.height})
+								</SelectItem>
+							))}
+						</SelectGroup>
 					))}
 				</SelectContent>
 			</Select>
-			<div className="text-xs text-gray-500">
-				{currentProject?.settings.dimensions.width} x {currentProject?.settings.dimensions.height}
-				<span className="ml-2">({currentProject?.settings.dimensions.aspectRatio})</span>
-			</div>
+			{currentDimensions && (
+				<div className="text-xs text-gray-500">
+					{currentDimensions.width} x {currentDimensions.height}
+					<span className="ml-2">
+						({calculateAspectRatio(currentDimensions.width, currentDimensions.height)})
+					</span>
+				</div>
+			)}
 		</div>
 	);
 };

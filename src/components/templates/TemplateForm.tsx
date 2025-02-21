@@ -6,6 +6,91 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, X, ChevronDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import { VideoFormatId, VIDEO_PRESETS } from '@/types/video.types';
+
+interface StyleParameterFormProps {
+	parameter: TemplateParameter;
+	onUpdate: (validation: TemplateParameter['validation']) => void;
+}
+
+const StyleParameterForm: React.FC<StyleParameterFormProps> = ({ parameter, onUpdate }) => {
+	const validation = parameter.validation || {};
+	return (
+		<div className="space-y-4">
+			<div className="space-y-2">
+				<Label>Style Strength</Label>
+				<Slider
+					value={[validation.styleStrength || 0.8]}
+					min={0}
+					max={1}
+					step={0.1}
+					onValueChange={([value]) => 
+						onUpdate({ ...validation, styleStrength: value })}
+				/>
+			</div>
+			<div className="flex items-center gap-2">
+				<Checkbox 
+					checked={validation.preserveContent}
+					onCheckedChange={(checked) => 
+						onUpdate({ ...validation, preserveContent: checked })}
+				/>
+				<Label>Preserve Original Content</Label>
+			</div>
+			<div className="space-y-2">
+				<Label>Style Presets</Label>
+				<div className="grid grid-cols-2 gap-2">
+					{parameter.stylePresets?.map((preset, index) => (
+						<div key={index} className="flex items-center gap-2 p-2 border rounded">
+							<Input
+								placeholder="Preset Name"
+								value={preset.name}
+								onChange={(e) => {
+									const newPresets = [...(parameter.stylePresets || [])];
+									newPresets[index] = { ...preset, name: e.target.value };
+									onUpdate({ 
+										...validation, 
+										stylePresets: newPresets 
+									});
+								}}
+							/>
+							<Input
+								placeholder="Style Value"
+								value={preset.value}
+								onChange={(e) => {
+									const newPresets = [...(parameter.stylePresets || [])];
+									newPresets[index] = { ...preset, value: e.target.value };
+									onUpdate({ 
+										...validation, 
+										stylePresets: newPresets 
+									});
+								}}
+							/>
+						</div>
+					))}
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => {
+							const newPresets = [...(parameter.stylePresets || []), { name: '', value: '' }];
+							onUpdate({ ...validation, stylePresets: newPresets });
+						}}
+					>
+						Add Preset
+					</Button>
+				</div>
+			</div>
+		</div>
+	);
+};
 
 interface ValidationFormProps {
 	validation: TemplateParameter['validation'];
@@ -71,17 +156,27 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ parameter, onUpdate, onDe
 					<option value="color">Color</option>
 					<option value="select">Select</option>
 					<option value="media">Media</option>
+					<option value="style">Style Transfer</option>
 				</select>
-				<Input
-					placeholder="Default Value"
-					value={parameter.defaultValue}
-					onChange={(e) => onUpdate({ ...parameter, defaultValue: e.target.value })}
-				/>
+				{parameter.type !== 'style' && (
+					<Input
+						placeholder="Default Value"
+						value={parameter.defaultValue}
+						onChange={(e) => onUpdate({ ...parameter, defaultValue: e.target.value })}
+					/>
+				)}
 			</div>
-			<ValidationForm
-				validation={parameter.validation}
-				onUpdate={(validation) => onUpdate({ ...parameter, validation })}
-			/>
+			{parameter.type === 'style' ? (
+				<StyleParameterForm
+					parameter={parameter}
+					onUpdate={(validation) => onUpdate({ ...parameter, validation })}
+				/>
+			) : (
+				<ValidationForm
+					validation={parameter.validation}
+					onUpdate={(validation) => onUpdate({ ...parameter, validation })}
+				/>
+			)}
 		</div>
 		<Button variant="ghost" size="icon" onClick={onDelete}>
 			<X className="h-4 w-4" />
@@ -144,11 +239,15 @@ export const TemplateForm: React.FC = () => {
 		name: '',
 		description: '',
 		category: '',
-		version: '1.0',
 		parameters: [],
-		blocks: [],
-		tags: [],
+		version: '1.0',
 		versionHistory: [],
+		created: new Date(),
+		updated: new Date(),
+		videoFormat: 'youtube-landscape', // Default format
+		isPublished: false,
+		blocks: [],
+		tags: []
 	});
 
 	const addParameter = () => {
@@ -236,6 +335,40 @@ export const TemplateForm: React.FC = () => {
 					onChange={(e) => setTemplate(prev => ({ ...prev, category: e.target.value }))}
 					placeholder="Enter template category"
 				/>
+			</div>
+
+			<div>
+				<Label>Video Format</Label>
+				<Select
+					value={template.videoFormat}
+					onValueChange={(value: VideoFormatId) => 
+						setTemplate(prev => ({ ...prev, videoFormat: value }))
+					}
+				>
+					<SelectTrigger>
+						<SelectValue placeholder="Select video format" />
+					</SelectTrigger>
+					<SelectContent>
+						{Object.entries(VIDEO_PRESETS).map(([id, dimensions]) => (
+							<SelectItem key={id} value={id}>
+								{id.replace(/-/g, ' ')} ({dimensions.width}x{dimensions.height})
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+
+			<div>
+				<Label>Publishing Status</Label>
+				<div className="flex items-center space-x-2">
+					<Switch
+						checked={template.isPublished}
+						onCheckedChange={(checked) =>
+							setTemplate(prev => ({ ...prev, isPublished: checked }))
+						}
+					/>
+					<Label>{template.isPublished ? 'Published' : 'Draft'}</Label>
+				</div>
 			</div>
 
 			<div>

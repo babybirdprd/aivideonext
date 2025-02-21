@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Template, TemplateState, TemplateVersion, TemplateInheritance } from './template.types';
+import { VideoFormatId } from '@/types/video.types';
 
 interface TemplateStore extends TemplateState {
 	// Template Management
@@ -7,6 +8,14 @@ interface TemplateStore extends TemplateState {
 	updateTemplate: (id: string, updates: Partial<Template>) => void;
 	deleteTemplate: (id: string) => void;
 	selectTemplate: (id: string | null) => void;
+
+	// Filtering
+	filterFormat: VideoFormatId | null;
+	filterPublished: boolean | null;
+	setFilterFormat: (format: VideoFormatId | null) => void;
+	setFilterPublished: (published: boolean | null) => void;
+	getFilteredTemplates: () => Template[];
+	getTemplatesByFormat: (format: VideoFormatId) => Template[];
 	
 	// Template Operations
 	duplicateTemplate: (id: string) => void;
@@ -31,6 +40,8 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	selectedTemplate: null,
 	isLoading: false,
 	error: null,
+	filterFormat: null,
+	filterPublished: null,
 
 	addTemplate: (template) => set((state) => ({
 		templates: [...state.templates, template]
@@ -189,5 +200,24 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 	}),
 
 	setLoading: (isLoading) => set({ isLoading }),
-	setError: (error) => set({ error })
+	setError: (error) => set({ error }),
+
+	// Filtering methods
+	setFilterFormat: (format) => set({ filterFormat: format }),
+	setFilterPublished: (published) => set({ filterPublished: published }),
+
+	getFilteredTemplates: () => {
+		const { templates, filterFormat, filterPublished } = get();
+		
+		return templates.filter(template => {
+			if (filterFormat && template.videoFormat !== filterFormat) return false;
+			if (filterPublished !== null && template.isPublished !== filterPublished) return false;
+			return true;
+		});
+	},
+
+	getTemplatesByFormat: (format) => {
+		const { templates } = get();
+		return templates.filter(template => template.videoFormat === format);
+	},
 }));

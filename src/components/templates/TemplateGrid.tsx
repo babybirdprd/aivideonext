@@ -2,7 +2,8 @@ import React from 'react';
 import { useTemplateStore } from '@/store/template.store';
 import { Template } from '@/store/template.types';
 import { Button } from '@/components/ui/button';
-import { Copy, Trash2, GitBranch } from 'lucide-react';
+import { Copy, Trash2, GitBranch, MonitorPlay, Tag, CircleDot } from 'lucide-react';
+import { VIDEO_PRESETS } from '@/types/video.types';
 
 interface TemplateCardProps {
 	template: Template;
@@ -23,8 +24,8 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
 						className="w-full h-full object-cover"
 					/>
 				) : (
-					<div className="w-full h-full flex items-center justify-center text-muted-foreground">
-						No Preview
+					<div className="w-full h-full flex items-center justify-center bg-accent">
+						<MonitorPlay className="h-8 w-8 text-muted-foreground" />
 					</div>
 				)}
 			</div>
@@ -35,10 +36,19 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect }) => {
 				<p className="text-sm text-muted-foreground line-clamp-2">
 					{template.description}
 				</p>
-				<div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-					<span>v{template.version}</span>
-					<span>•</span>
-					<span>{template.category}</span>
+				<div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+					<div className="flex items-center gap-1">
+						<MonitorPlay className="h-3 w-3" />
+						<span>{template.videoFormat.replace(/-/g, ' ')}</span>
+					</div>
+					<div className="flex items-center gap-1">
+						<Tag className="h-3 w-3" />
+						<span>{template.category}</span>
+					</div>
+					<div className="flex items-center gap-1">
+						<CircleDot className="h-3 w-3" />
+						<span>{template.isPublished ? 'Published' : 'Draft'}</span>
+					</div>
 				</div>
 			</div>
 

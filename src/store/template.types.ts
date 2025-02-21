@@ -1,10 +1,11 @@
 import { Block } from './types';
+import { VideoFormatId } from '@/types/video.types';
 import { z } from 'zod';
 
 export const TemplateParameterSchema = z.object({
 	id: z.string(),
 	name: z.string(),
-	type: z.enum(['text', 'number', 'color', 'select', 'media']),
+	type: z.enum(['text', 'number', 'color', 'select', 'media', 'style']),
 	defaultValue: z.any(),
 	options: z.array(z.string()).optional(),
 	validation: z.object({
@@ -12,7 +13,14 @@ export const TemplateParameterSchema = z.object({
 		min: z.number().optional(),
 		max: z.number().optional(),
 		pattern: z.string().optional(),
+		styleStrength: z.number().min(0).max(1).optional(),
+		preserveContent: z.boolean().optional(),
 	}).optional(),
+	stylePresets: z.array(z.object({
+		name: z.string(),
+		value: z.string(),
+		preview: z.string().optional(),
+	})).optional(),
 });
 
 export const TemplateVersionSchema = z.object({
@@ -38,7 +46,7 @@ export const TemplateSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	description: z.string(),
-	thumbnail: z.string().optional(),
+	category: z.string(),
 	blocks: z.array(z.any()),
 	parameters: z.array(TemplateParameterSchema),
 	version: z.string(),
@@ -46,8 +54,10 @@ export const TemplateSchema = z.object({
 	versionHistory: z.array(TemplateVersionSchema),
 	created: z.date(),
 	updated: z.date(),
+	thumbnail: z.string().optional(),
+	videoFormat: z.custom<VideoFormatId>(),
+	isPublished: z.boolean().default(false),
 	tags: z.array(z.string()),
-	category: z.string(),
 	isBase: z.boolean().optional(),
 });
 

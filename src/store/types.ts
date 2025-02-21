@@ -1,4 +1,4 @@
-import { VideoFormat, VideoDimensions } from '../types/video.types';
+import { VideoFormatId, VideoDimensions } from '../types/video.types';
 
 export type BlockType = 'text' | 'media' | 'effect' | 'transition';
 
@@ -48,7 +48,7 @@ export interface ProjectSettings {
 	fps: number;
 	duration: number;
 	theme: string;
-	videoFormat: VideoFormat;
+	videoFormat: VideoFormatId;
 	dimensions: VideoDimensions;
 }
 

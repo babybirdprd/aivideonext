@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { EditorState, Project, Block, Template } from './types';
-import { VIDEO_PRESETS, VideoFormat } from '../types/video.types';
+import { VideoFormat, VIDEO_FORMATS, getVideoFormat } from '../types/video.types';
+
+const DEFAULT_FORMAT = VIDEO_FORMATS[0]; // youtube-landscape
 
 const DEFAULT_PROJECT: Project = {
 	id: 'default',
@@ -11,8 +13,12 @@ const DEFAULT_PROJECT: Project = {
 		fps: 30,
 		duration: 0,
 		theme: 'default',
-		videoFormat: 'youtube',
-		dimensions: VIDEO_PRESETS['youtube']
+		videoFormat: DEFAULT_FORMAT.id,
+		dimensions: {
+			width: DEFAULT_FORMAT.width,
+			height: DEFAULT_FORMAT.height,
+			aspectRatio: `${DEFAULT_FORMAT.width}:${DEFAULT_FORMAT.height}`
+		}
 	},
 	assets: []
 };
@@ -225,14 +231,21 @@ export const useEditorStore = create<EditorState & {
 
 	getAppliedTemplates: () => get().appliedTemplates,
 
-	setVideoFormat: (format) => set((state) => {
+	setVideoFormat: (formatId: string) => set((state) => {
 		if (!state.currentProject) return state;
+		const format = getVideoFormat(formatId);
+		if (!format) return state;
+
 		const newProject = {
 			...state.currentProject,
 			settings: {
 				...state.currentProject.settings,
-				videoFormat: format,
-				dimensions: VIDEO_PRESETS[format]
+				videoFormat: formatId,
+				dimensions: {
+					width: format.width,
+					height: format.height,
+					aspectRatio: `${format.width}:${format.height}`
+				}
 			}
 		};
 		return {

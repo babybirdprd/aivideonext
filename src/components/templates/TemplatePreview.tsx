@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
-import { Clock, GitBranch } from 'lucide-react';
+import { Clock, GitBranch, MonitorPlay, Tag, CircleDot } from 'lucide-react';
+import { VIDEO_PRESETS } from '@/types/video.types';
 
 interface ParameterInputProps {
 	parameter: TemplateParameter;
@@ -161,12 +162,33 @@ export const TemplatePreview: React.FC = () => {
 			<div>
 				<h2 className="text-lg font-semibold mb-2">{template.name}</h2>
 				<p className="text-sm text-muted-foreground">{template.description}</p>
-				{template.inheritance && (
-					<div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-						<GitBranch className="h-4 w-4" />
-						<span>Inherits from: {templates.find(t => t.id === template.inheritance?.parentId)?.name}</span>
+				
+				<div className="mt-2 flex flex-col gap-1">
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
+						<MonitorPlay className="h-4 w-4" />
+						<span>
+							{resolvedTemplate.videoFormat.replace(/-/g, ' ')} 
+							({VIDEO_PRESETS[resolvedTemplate.videoFormat].width}x{VIDEO_PRESETS[resolvedTemplate.videoFormat].height})
+						</span>
 					</div>
-				)}
+					
+					{template.inheritance && (
+						<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<GitBranch className="h-4 w-4" />
+							<span>Inherits from: {templates.find(t => t.id === template.inheritance?.parentId)?.name}</span>
+						</div>
+					)}
+
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
+						<Tag className="h-4 w-4" />
+						<span>{template.category}</span>
+					</div>
+
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
+						<CircleDot className="h-4 w-4" />
+						<span>{template.isPublished ? 'Published' : 'Draft'}</span>
+					</div>
+				</div>
 			</div>
 
 			{resolvedTemplate.parameters.length > 0 && (
