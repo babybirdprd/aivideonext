@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Effect, Transition } from '@/services/media/types';
+import { VideoDimensions } from '@/types/video.types';
 
 interface PreviewRendererProps {
 	videoUrl?: string;
@@ -8,6 +9,7 @@ interface PreviewRendererProps {
 	transition?: Transition;
 	isPlaying: boolean;
 	onTimeUpdate?: (time: number) => void;
+	dimensions?: VideoDimensions;
 }
 
 export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
@@ -16,7 +18,8 @@ export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
 	effects,
 	transition,
 	isPlaying,
-	onTimeUpdate
+	onTimeUpdate,
+	dimensions
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -25,12 +28,17 @@ export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
-		if (!canvas) return;
+		if (!canvas || !dimensions) return;
+
+		// Set canvas size to match video dimensions
+		canvas.width = dimensions.width;
+		canvas.height = dimensions.height;
 
 		const gl = canvas.getContext('webgl');
 		if (!gl) return;
 
 		contextRef.current = gl;
+		gl.viewport(0, 0, dimensions.width, dimensions.height);
 		initWebGL(gl);
 
 		return () => {
@@ -38,7 +46,7 @@ export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
 				cancelAnimationFrame(rafRef.current);
 			}
 		};
-	}, []);
+	}, [dimensions]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -134,7 +142,11 @@ export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
 		<div className="relative w-full h-full">
 			<canvas
 				ref={canvasRef}
-				className="absolute inset-0 w-full h-full"
+				className="absolute inset-0 w-full h-full object-contain"
+				style={{
+					maxWidth: '100%',
+					maxHeight: '100%'
+				}}
 			/>
 			<video
 				ref={videoRef}

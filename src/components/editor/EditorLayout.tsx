@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -11,6 +13,7 @@ import { useDrag } from 'react-dnd';
 import { PropertyPanel } from './properties/PropertyPanel';
 import { PreviewPanel } from './preview/PreviewPanel';
 import { Type, Image, Wand2, Transition } from 'lucide-react';
+import VideoFormatSelector from './VideoFormatSelector';
 
 interface ToolButtonProps {
 	block: Partial<Block>;
@@ -128,7 +131,10 @@ export const EditorLayout: React.FC = () => {
 				{/* Properties Panel */}
 				<div className="w-64 border-l border-border p-4">
 					<h2 className="text-lg font-semibold mb-4">Properties</h2>
-					<PropertyPanel />
+					<div className="space-y-6">
+						<VideoFormatSelector />
+						<PropertyPanel />
+					</div>
 				</div>
 
 				{/* Collaboration Overlay */}

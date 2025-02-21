@@ -61,9 +61,11 @@
 - Style transfer
 - Marketplace UI
 - Trend analysis enhancements
-- Autonomous video editing (AI - llm)
-- Autonomous video creation (AI - llm)
-- Autonomous template creation (AI - llm)
+- Robust text overlays/captioning via whisper with word level timestamps
+- Create any and all missing components
+- Autonomous video editing (AI - llm tool calls or xml formatting to act as a tool for controlling the edits etc, b-roll generator, etc)
+- Autonomous video creation (AI - llm tool calls or xml formatting to act as a tool for controlling the edits etc, b-roll generator, etc)
+- Autonomous template creation (AI - llm tool calls or xml formatting to act as a tool for controlling the edits etc, b-roll generator, etc)
 - Connecting services throughout the app
 
 ### Phase 6: Final Polishing & Launch Preparation (Week 7-9)
@@ -73,10 +75,7 @@
   - Polish animations, micro-interactions, and transitions  
 - **Comprehensive Testing:**  
   - Execute full end-to-end testing across all supported devices and browsers  
-  - Validate all integrations (AI services, rendering, collaboration) under production-like conditions  
-- **Deployment & Rollback Strategy:**  
-  - Optimize deployment pipelines and ensure smooth CI/CD flows  
-  - Prepare contingency plans and rollback procedures for post-launch issues  
+  - Validate all integrations (AI services, rendering, collaboration) under production-like conditions
 - **Marketing & Support Readiness:**  
   - Finalize user documentation, FAQs, and video tutorials  
   - Coordinate with marketing for launch materials and press kits  

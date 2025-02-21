@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { EditorState, Project, Block, Template } from './types';
+import { VIDEO_PRESETS, VideoFormat } from '../types/video.types';
 
 const DEFAULT_PROJECT: Project = {
 	id: 'default',
@@ -9,7 +10,9 @@ const DEFAULT_PROJECT: Project = {
 		resolution: '1080p',
 		fps: 30,
 		duration: 0,
-		theme: 'default'
+		theme: 'default',
+		videoFormat: 'youtube',
+		dimensions: VIDEO_PRESETS['youtube']
 	},
 	assets: []
 };
@@ -33,6 +36,7 @@ export const useEditorStore = create<EditorState & {
 	applyTemplate: (application: TemplateApplication) => void;
 	revertTemplateApplication: (templateId: string) => void;
 	getAppliedTemplates: () => string[];
+	setVideoFormat: (format: VideoFormat) => void;
 }>((set, get) => ({
 	currentProject: DEFAULT_PROJECT,
 	selectedBlock: null,
@@ -220,4 +224,23 @@ export const useEditorStore = create<EditorState & {
 	}),
 
 	getAppliedTemplates: () => get().appliedTemplates,
+
+	setVideoFormat: (format) => set((state) => {
+		if (!state.currentProject) return state;
+		const newProject = {
+			...state.currentProject,
+			settings: {
+				...state.currentProject.settings,
+				videoFormat: format,
+				dimensions: VIDEO_PRESETS[format]
+			}
+		};
+		return {
+			currentProject: newProject,
+			history: {
+				past: [...state.history.past, state.currentProject],
+				future: []
+			}
+		};
+	}),
 }));

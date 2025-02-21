@@ -44,6 +44,11 @@ export const PreviewPanel: React.FC<{ projectId: string }> = ({ projectId }) => 
 	const [isPlaying, setIsPlaying] = React.useState(false);
 	const [currentTime, setCurrentTime] = React.useState(0);
 
+	// Calculate aspect ratio for the preview container
+	const aspectRatio = currentProject?.settings.dimensions
+		? `${currentProject.settings.dimensions.width} / ${currentProject.settings.dimensions.height}`
+		: '16 / 9';
+
 	const handlePlayPause = () => {
 		setIsPlaying(!isPlaying);
 	};

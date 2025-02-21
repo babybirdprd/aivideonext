@@ -1,3 +1,5 @@
+import { VideoFormat, VideoDimensions } from '../types/video.types';
+
 export type BlockType = 'text' | 'media' | 'effect' | 'transition';
 
 export type EffectType = 'blur' | 'brightness' | 'contrast' | 'saturation' | 'overlay' | 'zoom' | 'pan' | 'rotate' | 'fade';
@@ -35,14 +37,19 @@ export interface Project {
 	id: string;
 	name: string;
 	blocks: Block[];
-	settings: {
-		resolution: string;
-		fps: number;
-		duration: number;
-		theme: string;
-	};
+	settings: ProjectSettings;
+
 	assets: Asset[];
 	videoUrl?: string; // URL for preview video
+}
+
+export interface ProjectSettings {
+	resolution: string;
+	fps: number;
+	duration: number;
+	theme: string;
+	videoFormat: VideoFormat;
+	dimensions: VideoDimensions;
 }
 
 export interface EditorState {

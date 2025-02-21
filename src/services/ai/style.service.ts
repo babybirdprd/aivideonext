@@ -1,90 +1,42 @@
-import { OpenAI } from 'openai';
-import { ServiceResponse, ServiceMetrics } from '../types';
-
-export interface StyleTransferParams {
-	sourceUrl: string;
-	style: string;
-	strength?: number; // 0-1, controls how strongly to apply the style
-	preserveContent?: boolean; // whether to prioritize content preservation
-}
-
-export interface StyleTransferResult {
-	resultUrl: string;
-	style: string;
-	processingStats: {
-		duration: number;
-		modelUsed: string;
-		success: boolean;
-	};
-}
+import { StyleTransferParams, StyleTransferResult, StyleTransferSchema } from './types';
+import { replicateService } from './replicate.service';
+import { REPLICATE_MODELS } from './replicate.types';
 
 export class StyleTransferService {
-	private client: OpenAI;
-	private metrics: ServiceMetrics;
-
-	constructor() {
-		this.client = new OpenAI({
-			apiKey: process.env.OPENAI_API_KEY,
-		});
-		this.metrics = {
-			startTime: 0,
-			endTime: 0,
-			processingTime: 0,
-		};
-	}
-
-	private startMetrics() {
-		this.metrics.startTime = Date.now();
-	}
-
-	private endMetrics() {
-		this.metrics.endTime = Date.now();
-		this.metrics.processingTime = this.metrics.endTime - this.metrics.startTime;
-	}
-
-	private buildStylePrompt(params: StyleTransferParams): string {
-		const preserveContent = params.preserveContent ? 'while maintaining the original content and composition' : '';
-		const strength = params.strength ? `with ${Math.round(params.strength * 100)}% style intensity` : '';
-		
-		return `Transform this image in the style of ${params.style} ${strength} ${preserveContent}. 
-						Maintain high quality and ensure smooth style integration.`;
-	}
-
-	public async transferStyle(params: StyleTransferParams): Promise<ServiceResponse<StyleTransferResult>> {
+	async transferStyle(params: StyleTransferParams): Promise<StyleTransferResult> {
 		try {
-			this.startMetrics();
+			const validatedParams = StyleTransferSchema.parse(params);
 			
-			const response = await this.client.images.edit({
-				image: await fetch(params.sourceUrl).then(r => r.blob()),
-				prompt: this.buildStylePrompt(params),
-				model: "dall-e-3",
-				size: "1024x1024",
-				quality: "hd",
+			const prediction = await replicateService.predict({
+				modelVersion: REPLICATE_MODELS.stableDiffusion,
+				input: {
+					image: validatedParams.sourceUrl,
+					prompt: validatedParams.style,
+					strength: validatedParams.strength || 0.8,
+					guidance_scale: validatedParams.preserveContent ? 7.5 : 15.0
+				}
 			});
 
-			this.endMetrics();
+			const result = await replicateService.waitForCompletion(prediction.id);
+
+			if (!result.output || typeof result.output !== 'string') {
+				throw new Error('Invalid output from style transfer model');
+			}
 
 			return {
-				success: true,
-				data: {
-					resultUrl: response.data[0]?.url || params.sourceUrl,
-					style: params.style,
-					processingStats: {
-						duration: this.metrics.processingTime,
-						modelUsed: 'dall-e-3',
-						success: true,
-					},
-				},
+				resultUrl: result.output,
+				style: validatedParams.style,
+				processingStats: {
+					duration: Date.now() - new Date(result.created_at || Date.now()).getTime(),
+					modelUsed: 'sdxl',
+					success: true
+				}
 			};
 		} catch (error) {
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : 'Unknown error occurred',
-			};
+			console.error('Style transfer error:', error);
+			throw error;
 		}
 	}
-
-	public getMetrics(): ServiceMetrics {
-		return this.metrics;
-	}
 }
+
+export const styleTransferService = new StyleTransferService();
