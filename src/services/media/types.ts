@@ -10,7 +10,8 @@ export interface RenderProgress {
 // Effect Types
 export const EffectTypeSchema = z.enum([
 	'blur', 'brightness', 'contrast', 'saturation',
-	'overlay', 'zoom', 'pan', 'rotate', 'fade'
+	'overlay', 'zoom', 'pan', 'rotate', 'fade',
+	'style-transfer'
 ]);
 
 export const EffectSchema = z.object({
@@ -18,7 +19,13 @@ export const EffectSchema = z.object({
 	intensity: z.number().min(0).max(1),
 	startTime: z.number(),
 	duration: z.number(),
-	params: z.record(z.string(), z.union([z.string(), z.number()])).optional()
+	params: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+	properties: z.object({
+		style: z.string().optional(),
+		preserveContent: z.boolean().optional(),
+		styledTexture: z.any().optional(), // HTMLImageElement can't be validated by zod
+		intensity: z.number().min(0).max(1).optional()
+	}).optional()
 });
 
 // Transition Types

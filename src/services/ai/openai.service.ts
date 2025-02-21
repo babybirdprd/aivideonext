@@ -8,6 +8,22 @@ import {
 	VoiceGenerationSchema 
 } from './types';
 
+interface DetailedVisionAnalysis {
+	description: string;
+	objects: string[];
+	actions: string[];
+	composition: string;
+	lighting: string;
+	colors: string[];
+	mood: string;
+}
+
+interface VideoFrameAnalysis extends DetailedVisionAnalysis {
+	timestamp: number;
+	keyElements: string[];
+	suggestedEdits?: string[];
+}
+
 interface VisionAnalysisParams {
 	imageUrl: string;
 	prompt?: string;
@@ -124,7 +140,7 @@ export class OpenAIService {
 							{ type: "text", text: params.prompt || "Analyze this image in detail." },
 							{
 								type: "image_url",
-								image_url: params.imageUrl,
+								url: params.imageUrl,
 							},
 						],
 					},
@@ -161,6 +177,113 @@ export class OpenAIService {
 			return {
 				success: true,
 				data: analyses.map(analysis => analysis.data || '').filter(Boolean),
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error occurred',
+			};
+		}
+	}
+
+	public async analyzeVideoFrameDetailed(params: VisionAnalysisParams): Promise<ServiceResponse<DetailedVisionAnalysis>> {
+		try {
+			this.startMetrics();
+			const prompt = `Analyze this video frame in detail. Provide a structured analysis including:
+1. Brief description
+2. Key objects present
+3. Actions/movements
+4. Visual composition
+5. Lighting characteristics
+6. Dominant colors
+7. Overall mood/atmosphere`;
+
+			const completion = await this.client.chat.completions.create({
+				model: "gpt-4-vision-preview",
+				messages: [
+					{
+						role: "user",
+						content: [
+							{ type: "text", text: params.prompt || prompt },
+							{
+								type: "image_url",
+								url: params.imageUrl,
+							},
+						],
+					},
+				],
+				max_tokens: 1000,
+			});
+			this.endMetrics();
+			
+			const content = completion.choices[0]?.message?.content || '';
+			return {
+				success: true,
+				data: this.parseVisionAnalysis(content),
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error occurred',
+			};
+		}
+	}
+
+	private parseVisionAnalysis(content: string): DetailedVisionAnalysis {
+		const sections = content.split('\n');
+		const analysis: DetailedVisionAnalysis = {
+			description: '',
+			objects: [],
+			actions: [],
+			composition: '',
+			lighting: '',
+			colors: [],
+			mood: ''
+		};
+
+		sections.forEach(section => {
+			if (section.includes('objects:')) {
+				analysis.objects = section.split(':')[1].split(',').map(s => s.trim());
+			} else if (section.includes('actions:')) {
+				analysis.actions = section.split(':')[1].split(',').map(s => s.trim());
+			} else if (section.includes('composition:')) {
+				analysis.composition = section.split(':')[1].trim();
+			} else if (section.includes('lighting:')) {
+				analysis.lighting = section.split(':')[1].trim();
+			} else if (section.includes('colors:')) {
+				analysis.colors = section.split(':')[1].split(',').map(s => s.trim());
+			} else if (section.includes('mood:')) {
+				analysis.mood = section.split(':')[1].trim();
+			} else if (!section.includes(':')) {
+				analysis.description = section.trim();
+			}
+		});
+
+		return analysis;
+	}
+
+	public async analyzeVideoFramesDetailed(frames: string[]): Promise<ServiceResponse<VideoFrameAnalysis[]>> {
+		try {
+			this.startMetrics();
+			const analyses = await Promise.all(
+				frames.map(async (frame, index) => {
+					const analysis = await this.analyzeVideoFrameDetailed({
+						imageUrl: frame,
+						detail: 'high'
+					});
+					
+					return {
+						...(analysis.data as DetailedVisionAnalysis),
+						timestamp: index / frames.length,
+						keyElements: analysis.data?.objects || [],
+					};
+				})
+			);
+			this.endMetrics();
+			
+			return {
+				success: true,
+				data: analyses.filter(analysis => analysis !== null) as VideoFrameAnalysis[],
 			};
 		} catch (error) {
 			return {

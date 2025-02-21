@@ -59,10 +59,26 @@ export class FFmpegService {
 	}
 
 	private getEffectFilter(effect: Effect): string {
-		const { type, intensity, startTime, duration } = effect;
+		const { type, intensity, startTime, duration, properties } = effect;
 		const enable = `between(t,${startTime},${startTime + duration})`;
 		
 		switch (type) {
+			case 'style-transfer': {
+				// For style transfer, we use a combination of filters to achieve the effect
+				const strength = properties?.intensity || intensity || 0.5;
+				const preserveContent = properties?.preserveContent ? 0.5 : 0.0;
+				
+				// Create a stylized version using a combination of filters
+				return [
+					// Apply artistic effect
+					`hue=s=${1 + strength}`,
+					`colorbalance=rs=${strength}:gs=${strength}:bs=${strength}`,
+					// Preserve original content if needed
+					preserveContent > 0 ? `blend=all_mode=overlay:all_opacity=${preserveContent}` : '',
+					// Enable during the specified time window
+					`enable='${enable}'`
+				].filter(Boolean).join(',');
+			}
 			case 'blur':
 				return `boxblur=${intensity * 20}:1:enable='${enable}'`;
 			case 'brightness':

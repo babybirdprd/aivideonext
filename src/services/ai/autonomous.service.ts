@@ -15,22 +15,57 @@ import { z } from 'zod';
 
 // Schema definitions
 export const AutoEditRequestSchema = z.object({
-    sourceVideoUrl: z.string().url(),
-    editInstructions: z.string(),
-    style: z.string().optional(),
-    duration: z.number().optional(),
-    outputFormat: z.enum(['mp4', 'webm']).optional(),
+	sourceVideoUrl: z.string().url(),
+	editInstructions: z.string(),
+	style: z.string().optional(),
+	temperature: z.number().min(0).max(1).optional(),
+	useVisionAnalysis: z.boolean().optional(),
+	outputFormat: z.enum(['mp4', 'webm']).optional(),
+	quality: z.enum(['high', 'medium', 'low']).optional()
 });
 
 export const AutoCreateRequestSchema = z.object({
-    prompt: z.string(),
-    style: z.string().optional(),
-    duration: z.number(),
-    outputFormat: z.enum(['mp4', 'webm']).optional(),
+	prompt: z.string(),
+	style: z.string().optional(),
+	temperature: z.number().min(0).max(1).optional(),
+	duration: z.number(),
+	outputFormat: z.enum(['mp4', 'webm']).optional(),
+	quality: z.enum(['high', 'medium', 'low']).optional()
 });
 
 export type AutoEditRequest = z.infer<typeof AutoEditRequestSchema>;
 export type AutoCreateRequest = z.infer<typeof AutoCreateRequestSchema>;
+
+// AI and Video Quality Settings
+interface AISettings {
+	temperature: number;
+	style: string;
+	quality: 'high' | 'medium' | 'low';
+}
+
+interface VideoQualityPreset {
+	resolution: { width: number; height: number };
+	bitrate: string;
+	fps: number;
+}
+
+const QUALITY_PRESETS: Record<string, VideoQualityPreset> = {
+	high: {
+		resolution: { width: 1920, height: 1080 },
+		bitrate: '8000k',
+		fps: 30
+	},
+	medium: {
+		resolution: { width: 1280, height: 720 },
+		bitrate: '4000k',
+		fps: 30
+	},
+	low: {
+		resolution: { width: 854, height: 480 },
+		bitrate: '2000k',
+		fps: 24
+	}
+};
 
 // Interface definitions
 export interface VideoConcept {
@@ -158,51 +193,51 @@ export class AutonomousService {
 		}
 	}
 
-	private async analyzeVideoContent(videoUrl: string): Promise<VideoAnalysis> {
-		// Extract frames
-		const framesResult = await this.ffmpeg.extractFrames(videoUrl, 10);
-		if (!framesResult.success || !framesResult.data) {
-			throw new Error('Failed to extract video frames');
-		}
+	private async analyzeVideoContent(videoUrl: string, useVision: boolean = true, temperature: number = 0.7): Promise<VideoAnalysis> {
+		// Extract frames only if vision analysis is enabled
+		let frameAnalyses: ServiceResponse<string[]> = { success: true, data: [] };
+		
+		if (useVision) {
+			const framesResult = await this.ffmpeg.extractFrames(videoUrl, 10);
+			if (!framesResult.success || !framesResult.data) {
+				throw new Error('Failed to extract video frames');
+			}
 
-		// Analyze frames using OpenAI Vision
-		const frameAnalyses = await this.openai.analyzeVideoFrames(framesResult.data);
-		if (!frameAnalyses.success || !frameAnalyses.data) {
-			throw new Error('Failed to analyze video frames');
+			frameAnalyses = await this.openai.analyzeVideoFrames(framesResult.data);
+			if (!frameAnalyses.success || !frameAnalyses.data) {
+				throw new Error('Failed to analyze video frames');
+			}
 		}
-
-		// Generate comprehensive analysis
-		const analysis: VideoAnalysis = {
-			frames: frameAnalyses.data.map((description, index) => ({
-				timestamp: (index / 10), // Approximate timestamp
-				description,
-				keyElements: this.extractKeyElements(description)
-			})),
-			summary: '',
-			suggestedEdits: []
-		};
 
 		// Generate overall summary and edit suggestions
 		const summaryPrompt = `Analyze these video frame descriptions and provide:
 1. A concise summary of the video content
 2. A list of suggested edits to improve the video
 
-Frame descriptions:
-${frameAnalyses.data.join('\n')}`;
+${useVision ? `Frame descriptions:\n${frameAnalyses.data.join('\n')}` : 'No vision analysis performed'}`;
 
 		const summaryResult = await this.openai.generateText({
 			prompt: summaryPrompt,
 			maxTokens: 1000,
-			temperature: 0.7
+			temperature
 		});
 
-		if (summaryResult.success && summaryResult.data) {
-			const [summary, ...suggestions] = summaryResult.data.split('\n\n');
-			analysis.summary = summary;
-			analysis.suggestedEdits = suggestions;
+		if (!summaryResult.success || !summaryResult.data) {
+			throw new Error('Failed to generate video analysis');
 		}
 
-		return analysis;
+		const [summary, ...suggestions] = summaryResult.data.split('\n\n');
+		
+		return {
+			frames: useVision ? frameAnalyses.data.map((description, index) => ({
+				timestamp: (index / 10),
+				description,
+				keyElements: this.extractKeyElements(description)
+			})) : [],
+			summary,
+			suggestedEdits: suggestions
+		};
+
 	}
 
 	private async generateEditPlan(analysis: VideoAnalysis, instructions: string): Promise<any> {
@@ -302,7 +337,8 @@ Create a structured edit plan that includes:
 
 	private async executeEdits(editPlan: EditPlan, params: AutoEditRequest): Promise<ServiceResponse<Uint8Array>> {
 		try {
-			// Apply edits using FFmpeg service
+			const qualityPreset = QUALITY_PRESETS[params.quality || 'high'];
+			
 			const processingParams = {
 				input: params.sourceVideoUrl,
 				effects: editPlan.visualEnhancements.effects,
@@ -314,9 +350,12 @@ Create a structured edit plan that includes:
 				audioNormalization: editPlan.audioModifications.normalize,
 				format: {
 					format: params.outputFormat || 'mp4',
-					quality: 'high',
+					quality: params.quality || 'high',
 					codec: 'h264'
-				}
+				},
+				resolution: qualityPreset.resolution,
+				bitrate: qualityPreset.bitrate,
+				fps: qualityPreset.fps
 			};
 
 			// Process the video with the specified edits

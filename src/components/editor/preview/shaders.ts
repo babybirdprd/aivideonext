@@ -64,6 +64,25 @@ export const effectShaders = {
 			float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 			gl_FragColor = vec4(mix(vec3(gray), color.rgb, 1.0 + u_intensity), color.a);
 		}
+	`,
+
+	styleTransfer: `
+		precision mediump float;
+		uniform sampler2D u_image;
+		uniform sampler2D u_style;
+		uniform float u_intensity;
+		uniform float u_preserveContent;
+		varying vec2 v_texCoord;
+
+		void main() {
+			vec4 originalColor = texture2D(u_image, v_texCoord);
+			vec4 styleColor = texture2D(u_style, v_texCoord);
+			float preserveAmount = 1.0 - (u_intensity * (1.0 - u_preserveContent));
+			
+			// Blend between original and styled image
+			vec4 blendedColor = mix(styleColor, originalColor, preserveAmount);
+			gl_FragColor = blendedColor;
+		}
 	`
 };
 

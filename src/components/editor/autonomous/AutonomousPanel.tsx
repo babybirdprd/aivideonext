@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { useEditorStore } from '@/store/editor.store';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Settings2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AutonomousPanelProps {
 	projectId: string;
@@ -17,6 +20,14 @@ export const AutonomousPanel: React.FC<AutonomousPanelProps> = ({ projectId }) =
 	const [instructions, setInstructions] = useState('');
 	const [prompt, setPrompt] = useState('');
 	const [duration, setDuration] = useState(30);
+	const [showAdvanced, setShowAdvanced] = useState(false);
+	
+	// Advanced settings
+	const [style, setStyle] = useState('modern');
+	const [temperature, setTemperature] = useState(0.7);
+	const [useVisionAnalysis, setUseVisionAnalysis] = useState(true);
+	const [outputFormat, setOutputFormat] = useState('mp4');
+	const [quality, setQuality] = useState('high');
 
 	const handleAutoEdit = async () => {
 		try {
@@ -30,7 +41,11 @@ export const AutonomousPanel: React.FC<AutonomousPanelProps> = ({ projectId }) =
 					params: {
 						sourceVideoUrl: sourceUrl,
 						editInstructions: instructions,
-						outputFormat: 'mp4'
+						outputFormat,
+						style,
+						temperature,
+						useVisionAnalysis,
+						quality
 					}
 				})
 			});
@@ -67,7 +82,10 @@ export const AutonomousPanel: React.FC<AutonomousPanelProps> = ({ projectId }) =
 					params: {
 						prompt,
 						duration,
-						outputFormat: 'mp4'
+						outputFormat,
+						style,
+						temperature,
+						quality
 					}
 				})
 			});
@@ -109,6 +127,7 @@ export const AutonomousPanel: React.FC<AutonomousPanelProps> = ({ projectId }) =
 				<Button
 					onClick={handleAutoEdit}
 					disabled={loading || !sourceUrl || !instructions}
+					className="w-full"
 				>
 					<Wand2 className="w-4 h-4 mr-2" />
 					Auto Edit
@@ -133,10 +152,90 @@ export const AutonomousPanel: React.FC<AutonomousPanelProps> = ({ projectId }) =
 				<Button
 					onClick={handleAutoCreate}
 					disabled={loading || !prompt}
+					className="w-full"
 				>
 					<Wand2 className="w-4 h-4 mr-2" />
 					Auto Create
 				</Button>
+			</div>
+
+			<div className="space-y-2">
+				<Button
+					variant="outline"
+					onClick={() => setShowAdvanced(!showAdvanced)}
+					className="w-full"
+				>
+					<Settings2 className="w-4 h-4 mr-2" />
+					{showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+				</Button>
+
+				{showAdvanced && (
+					<div className="space-y-4 mt-4 p-4 border rounded-lg">
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Style</label>
+							<Select value={style} onValueChange={setStyle}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select style" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="modern">Modern</SelectItem>
+									<SelectItem value="cinematic">Cinematic</SelectItem>
+									<SelectItem value="vintage">Vintage</SelectItem>
+									<SelectItem value="minimal">Minimal</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-2">
+							<label className="text-sm font-medium">AI Temperature ({temperature})</label>
+							<Slider
+								value={[temperature]}
+								onValueChange={([value]) => setTemperature(value)}
+								min={0}
+								max={1}
+								step={0.1}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Output Format</label>
+							<Select value={outputFormat} onValueChange={setOutputFormat}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select format" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="mp4">MP4</SelectItem>
+									<SelectItem value="webm">WebM</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Quality</label>
+							<Select value={quality} onValueChange={setQuality}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select quality" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="high">High</SelectItem>
+									<SelectItem value="medium">Medium</SelectItem>
+									<SelectItem value="low">Low</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								id="vision"
+								checked={useVisionAnalysis}
+								onCheckedChange={(checked) => setUseVisionAnalysis(checked as boolean)}
+							/>
+							<label htmlFor="vision" className="text-sm font-medium">
+								Use Vision Analysis
+							</label>
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	);

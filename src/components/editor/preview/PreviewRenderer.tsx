@@ -1,6 +1,19 @@
 import React, { useEffect, useRef } from 'react';
-import { Effect, Transition } from '@/services/media/types';
+import { Transition } from '@/services/media/types';
 import { VideoDimensions } from '@/types/video.types';
+
+interface Effect {
+	type: string;
+	startTime: number;
+	duration: number;
+	properties?: {
+		intensity?: number;
+		preserveContent?: boolean;
+		styledTexture?: HTMLImageElement;
+		style?: string;
+		[key: string]: any;
+	};
+}
 
 interface PreviewRendererProps {
 	videoUrl?: string;
@@ -115,6 +128,42 @@ export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
 	const applyEffect = (gl: WebGLRenderingContext, effect: Effect) => {
 		// Effect-specific WebGL operations
 		switch (effect.type) {
+			case 'style-transfer': {
+				const program = createProgram(
+					gl, 
+					createShader(gl, gl.VERTEX_SHADER, vertexShaderSource),
+					createShader(gl, gl.FRAGMENT_SHADER, effectShaders.styleTransfer)
+				);
+				if (!program) return;
+
+				gl.useProgram(program);
+
+				// Set uniforms
+				const intensityLocation = gl.getUniformLocation(program, 'u_intensity');
+				const preserveContentLocation = gl.getUniformLocation(program, 'u_preserveContent');
+				
+				gl.uniform1f(intensityLocation, effect.properties?.intensity || 0.5);
+				gl.uniform1f(preserveContentLocation, effect.properties?.preserveContent ? 1.0 : 0.0);
+
+				// If we have a styled texture, bind it
+				if (effect.properties?.styledTexture) {
+					const styleTexture = gl.createTexture();
+					gl.activeTexture(gl.TEXTURE1);
+					gl.bindTexture(gl.TEXTURE_2D, styleTexture);
+					gl.texImage2D(
+						gl.TEXTURE_2D, 
+						0, 
+						gl.RGBA, 
+						gl.RGBA, 
+						gl.UNSIGNED_BYTE, 
+						effect.properties.styledTexture
+					);
+					
+					const styleLocation = gl.getUniformLocation(program, 'u_style');
+					gl.uniform1i(styleLocation, 1);
+				}
+				break;
+			}
 			case 'blur':
 				// Apply blur shader
 				break;
@@ -157,6 +206,8 @@ export const PreviewRenderer: React.FC<PreviewRendererProps> = ({
 		</div>
 	);
 };
+
+import { effectShaders } from './shaders';
 
 // WebGL shader sources
 const vertexShaderSource = `

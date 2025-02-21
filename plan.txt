@@ -76,7 +76,7 @@
 - Progress tracking
 
 ### Phase 5: Template Marketplace + Complete autonomy (Week 5-6)
-- Template creation interface
+- Template creation interface - Add niche based templates feature
 - Version control system
 - Template inheritance
 - Add support for replicate api - image/video
@@ -86,10 +86,11 @@
 - Trend analysis enhancements (google trends, and/or similar)
 - Robust text overlays/captioning/subtitle via whisper with word level timestamps - grounding of text via the transcript
 - Create any and all missing components
-- Prompt engineering for the ai based editing/assembling/stiching
 
 *Should be multiple services to maintain the modularity we aim for*
+- Need support for long form videos AND short form videos
 - Needs to be HIGHLY customizable from the frontend (ie prompts, temp, model, etc - whether vision is used for the model they select, need to be able to set any model string they want)
+- Prompt engineering for the ai based editing/assembling/stiching/transitions/transcript generation
 - Autonomous video editing - mainly via transcript - but vision support is good too (AI - AI agent(s) - llm tool calls or xml formatting to act as a tool for controlling the edits etc, b-roll generator, etc)
 - Autonomous video creation (AI - AI agent(s) - llm tool calls or xml formatting to act as a tool for controlling the edits etc, b-roll generator, etc)
 - Autonomous template creation (AI - AI agent(s) - llm tool calls or xml formatting to act as a tool for controlling the edits etc, b-roll generator, etc)
